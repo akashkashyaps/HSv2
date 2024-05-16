@@ -1,0 +1,11 @@
+transformers
+torch
+pandas
+numpy
+langchain
+chromadb
+bitsandbytes
+accelerate
+langchain-community
+ragas
+
