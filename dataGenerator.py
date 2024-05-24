@@ -6,17 +6,23 @@ from langchain_community.llms import Ollama
 from langchain_community.embeddings import OllamaEmbeddings  
 
 urls = ["https://www.ntu.ac.uk/course/computer-science", 
-    "https://www.ntu.ac.uk/study-and-courses/courses/our-facilities/computer-science-facilities"]
+    "https://www.ntu.ac.uk/study-and-courses/academic-schools/science-and-technology/Computer-Science"]
 
-loader = SeleniumURLLoader(urls)  # Creating an instance of SeleniumURLLoader with the given URLs
-documents = loader.load()  # Loading the documents using the loader
+loader = SeleniumURLLoader(urls)  
+documents = loader.load() 
 
 for document in documents:
     document.metadata["filename"] = document.metadata["source"]  # Adding a "filename" key to the metadata dictionary of each document
 
 # Split the documents into chunks
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)  # Creating an instance of RecursiveCharacterTextSplitter with the given parameters
-all_splits = text_splitter.split_documents(documents)  # Splitting the documents into chunks using the text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)  
+all_splits = text_splitter.split_documents(documents) 
+
+import torch
+
+# Check if CUDA is available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
 
 generator_llm = Ollama(model="phi3")  # Creating an instance of Ollama with the "phi3" model
 critic_llm = Ollama(model="llama3")  # Creating an instance of Ollama with the "llama3" model
@@ -37,11 +43,11 @@ print(f'Embedding dimension: {len(r2)}')
 generator = TestsetGenerator.from_langchain(
     generator_llm=generator_llm,
     critic_llm=critic_llm,
-    embeddings=ollama_emb
+    embeddings=ollama_emb,
 ) 
 
 # generate testset
-testset = generator.generate_with_langchain_docs(all_splits, test_size=10, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
+testset = generator.generate_with_langchain_docs(all_splits, test_size=300, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
 
 test_df = testset.to_pandas()  
-test_df.to_csv('testset.csv', index=False)  
+test_df.to_csv('testset3.csv', index=False)  

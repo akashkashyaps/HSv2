@@ -73,7 +73,7 @@ print(generated_ids)
 from langchain.document_loaders import SeleniumURLLoader
 
 urls = ["https://www.ntu.ac.uk/course/computer-science", 
-        "https://www.ntu.ac.uk/study-and-courses/courses/our-facilities/computer-science-facilities"]
+        "https://www.ntu.ac.uk/study-and-courses/academic-schools/science-and-technology/Computer-Science"]
        
 loader = SeleniumURLLoader(urls)
 documents = loader.load()
@@ -117,3 +117,56 @@ chain = load_qa_chain(llm, chain_type="stuff")
 query = "Are there any connections with local employers?"
 doc = vectorstore.similarity_search(query)
 chain.run(input_documents = doc, question = query)
+
+
+testset3 = pd.read_csv('testset3.csv')
+
+# Initialize lists to store results
+retrieved_contexts = []
+answers = []
+error_indices = []
+
+# Iterate through each question in the DataFrame
+for index, row in testset3.iterrows():
+    try:
+        question = row['question']
+        
+        # Debugging print to ensure correct row access
+        print(f"Processing question {index + 1}/{len(testset3)}: {question}")
+        
+        # Retrieve relevant documents/context for the question
+        docs = vectorstore.similarity_search(question)  # Perform similarity search
+        
+        # Debugging print to inspect retrieved documents
+        print(f"Retrieved {len(docs)} documents for question {index + 1}")
+        
+        # Concatenate the retrieved documents into a single context string
+        retrieved_context = " ".join([doc.page_content for doc in docs])
+        retrieved_contexts.append(retrieved_context)
+        
+        # Run the RAG chain with the retrieved context and the question
+        result = chain.run(input_documents=docs, question=question)
+        
+        # Extract only the answer part of the response
+        answer = result.split('\nHelpful Answer:')[1].split('\n\n')[0].strip()
+        
+        # Debugging print to inspect the result
+        print(f"Generated answer for question {index + 1}: {answer}")
+        
+        answers.append(answer)
+        
+    except Exception as e:
+        print(f"An error occurred with question {index + 1}: {e}")
+        retrieved_contexts.append(None)  # Append None to keep list length consistent
+        answers.append(None)  # Append None to keep list length consistent
+        error_indices.append(index)
+
+# Ensure the lengths of the lists match the DataFrame
+while len(retrieved_contexts) < len(testset3):
+    retrieved_contexts.append(None)
+while len(answers) < len(testset3):
+    answers.append(None)
+
+# Add the results to the DataFrame
+testset3['RAG Context'] = retrieved_contexts
+testset3['RAG Answer'] = answers
