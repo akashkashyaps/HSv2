@@ -119,6 +119,8 @@ doc = vectorstore.similarity_search(query)
 chain.run(input_documents = doc, question = query)
 
 
+
+# Load test set
 testset3 = pd.read_csv('testset3.csv')
 
 # Initialize lists to store results
@@ -147,10 +149,17 @@ for index, row in testset3.iterrows():
         # Run the RAG chain with the retrieved context and the question
         result = chain.run(input_documents=docs, question=question)
         
-        # Extract only the answer part of the response
-        answer = result.split('\nHelpful Answer:')[1].split('\n\n')[0].strip()
+        # Split the result into context and answer
+        if '\nHelpful Answer:' in result:
+            context, answer = result.split('\nHelpful Answer:', 1)
+            context = context.strip()
+            answer = answer.strip()
+        else:
+            context = retrieved_context
+            answer = "I don't know"
         
         # Debugging print to inspect the result
+        print(f"Generated context for question {index + 1}: {context}")
         print(f"Generated answer for question {index + 1}: {answer}")
         
         answers.append(answer)
@@ -170,3 +179,6 @@ while len(answers) < len(testset3):
 # Add the results to the DataFrame
 testset3['RAG Context'] = retrieved_contexts
 testset3['RAG Answer'] = answers
+
+# Save the DataFrame with the results
+testset3.to_csv('testset3_with_results.csv', index=False)
