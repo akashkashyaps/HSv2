@@ -160,4 +160,4 @@ def generate_and_save_testsets(splits, total_samples, filename_prefix, chunk_siz
     combined_df.to_csv(f'{filename_prefix}_combined.csv', index=False)
 
 # Generate and save test sets ensuring 5 samples
-generate_and_save_testsets(recreated_splits, total_samples=1000, filename_prefix='testset6', chunk_size=1)
+generate_and_save_testsets(recreated_splits, total_samples=1000, filename_prefix='testset6', chunk_size=10)
