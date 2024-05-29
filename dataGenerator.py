@@ -1,7 +1,7 @@
 from ragas.testset.generator import TestsetGenerator  
 from ragas.testset.evolutions import simple, reasoning, multi_context  
 from langchain.text_splitter import RecursiveCharacterTextSplitter  
-from langchain.document_loaders import SeleniumURLLoader  
+# from langchain.document_loaders import SeleniumURLLoader  
 from langchain_community.llms import Ollama  
 from langchain_community.embeddings import OllamaEmbeddings
 import json
