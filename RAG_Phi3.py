@@ -102,8 +102,8 @@ retriever = vectorstore.as_retriever()
 prompt_template =("""
 <|user|>
 Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-{context}
 NTU is Nottingham Trent University.It is not Singapore. Note this it is very important.
+{context}
 Question: {query}<|end|>
 <|assistant|>
 Helpful Answer:
@@ -119,37 +119,25 @@ doc = vectorstore.similarity_search(query)
 chain.run(input_documents = doc, question = query)
 
 
+from datasets import Dataset
 
 # Load test set
-testset3 = pd.read_csv('testset3.csv')
+testset4 = pd.read_csv('testset3.csv')
 
-# Initialize lists to store results
-retrieved_contexts = []
-answers = []
-error_indices = []
+# Prepare dataset for batch processing
+dataset = Dataset.from_pandas(testset4)
 
-# Iterate through each question in the DataFrame
-for index, row in testset3.iterrows():
-    try:
-        question = row['question']
-        
-        # Debugging print to ensure correct row access
-        print(f"Processing question {index + 1}/{len(testset3)}: {question}")
-        
-        # Retrieve relevant documents/context for the question
-        docs = vectorstore.similarity_search(question)  # Perform similarity search
-        
-        # Debugging print to inspect retrieved documents
-        print(f"Retrieved {len(docs)} documents for question {index + 1}")
-        
-        # Concatenate the retrieved documents into a single context string
+# Function to process each question
+def process_batch(batch):
+    questions = batch["question"]
+    contexts = []
+    answers = []
+    
+    for question in questions:
+        docs = vectorstore.similarity_search(question)
         retrieved_context = " ".join([doc.page_content for doc in docs])
-        retrieved_contexts.append(retrieved_context)
-        
-        # Run the RAG chain with the retrieved context and the question
         result = chain.run(input_documents=docs, question=question)
         
-        # Split the result into context and answer
         if '\nHelpful Answer:' in result:
             context, answer = result.split('\nHelpful Answer:', 1)
             context = context.strip()
@@ -158,27 +146,17 @@ for index, row in testset3.iterrows():
             context = retrieved_context
             answer = "I don't know"
         
-        # Debugging print to inspect the result
-        print(f"Generated context for question {index + 1}: {context}")
-        print(f"Generated answer for question {index + 1}: {answer}")
-        
+        contexts.append(context)
         answers.append(answer)
-        
-    except Exception as e:
-        print(f"An error occurred with question {index + 1}: {e}")
-        retrieved_contexts.append(None)  # Append None to keep list length consistent
-        answers.append(None)  # Append None to keep list length consistent
-        error_indices.append(index)
+    
+    return {"RAG Context": contexts, "RAG Answer": answers}
 
-# Ensure the lengths of the lists match the DataFrame
-while len(retrieved_contexts) < len(testset3):
-    retrieved_contexts.append(None)
-while len(answers) < len(testset3):
-    answers.append(None)
+# Batch process the dataset
+results = dataset.map(process_batch, batched=True, batch_size=8)
 
 # Add the results to the DataFrame
-testset3['RAG Context'] = retrieved_contexts
-testset3['RAG Answer'] = answers
+testset4['RAG Context'] = results['RAG Context']
+testset4['RAG Answer'] = results['RAG Answer']
 
 # Save the DataFrame with the results
-testset3.to_csv('testset3_with_results.csv', index=False)
+testset4.to_csv('testset3_with_results.csv', index=False)

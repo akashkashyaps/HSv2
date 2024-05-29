@@ -7,5 +7,4 @@ chromadb
 bitsandbytes
 accelerate
 langchain-community
-ragas
-
+ollama
