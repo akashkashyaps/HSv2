@@ -107,11 +107,11 @@ generator = TestsetGenerator.from_langchain(
 ) 
 # documents = vectordb.get()
 
-# # generate testset
-# testset = generator.generate_with_langchain_docs(recreated_splits, test_size=1000, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
+# generate testset
+testset = generator.generate_with_langchain_docs(recreated_splits, test_size=1000, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
 
-# test_df = testset.to_pandas()  
-# test_df.to_csv('testset5.csv', index=False)  
+test_df = testset.to_pandas()  
+test_df.to_csv('testset7.csv', index=False)  
 import pandas as pd
 
 # # Function to generate and save test sets in chunks
@@ -139,25 +139,25 @@ import pandas as pd
 # generate_and_save_testsets(recreated_splits, total_samples=1000, filename_prefix='testset5')
 
 
-# Function to generate and save test sets in chunks
-def generate_and_save_testsets(splits, total_samples, filename_prefix, chunk_size=100):
-    remaining_samples = total_samples
-    test_dfs = []
+# # Function to generate and save test sets in chunks
+# def generate_and_save_testsets(splits, total_samples, filename_prefix, chunk_size=100):
+#     remaining_samples = total_samples
+#     test_dfs = []
 
-    for i in range(0, len(splits), chunk_size):
-        chunk = splits[i:i + chunk_size]
-        if remaining_samples <= 0:
-            break
-        current_chunk_size = min(len(chunk), remaining_samples)
-        testset = generator.generate_with_langchain_docs(chunk, test_size=current_chunk_size, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)
-        test_df = testset.to_pandas()
-        test_dfs.append(test_df)
-        test_df.to_csv(f'{filename_prefix}_chunk_{i//chunk_size + 1}.csv', index=False)
-        remaining_samples -= current_chunk_size
+#     for i in range(0, len(splits), chunk_size):
+#         chunk = splits[i:i + chunk_size]
+#         if remaining_samples <= 0:
+#             break
+#         current_chunk_size = min(len(chunk), remaining_samples)
+#         testset = generator.generate_with_langchain_docs(chunk, test_size=current_chunk_size, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)
+#         test_df = testset.to_pandas()
+#         test_dfs.append(test_df)
+#         test_df.to_csv(f'{filename_prefix}_chunk_{i//chunk_size + 1}.csv', index=False)
+#         remaining_samples -= current_chunk_size
 
-    # Combine all chunks into a single DataFrame
-    combined_df = pd.concat(test_dfs, ignore_index=True)
-    combined_df.to_csv(f'{filename_prefix}_combined.csv', index=False)
+#     # Combine all chunks into a single DataFrame
+#     combined_df = pd.concat(test_dfs, ignore_index=True)
+#     combined_df.to_csv(f'{filename_prefix}_combined.csv', index=False)
 
-# Generate and save test sets ensuring 5 samples
-generate_and_save_testsets(recreated_splits, total_samples=1000, filename_prefix='testset6', chunk_size=100)
+# # Generate and save test sets ensuring 5 samples
+# generate_and_save_testsets(recreated_splits, total_samples=1000, filename_prefix='testset6', chunk_size=100)
