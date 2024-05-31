@@ -148,7 +148,7 @@ def create_ragas_dataset(rag_pipeline, dataset):
         answer = rag_pipeline.invoke({"question" : row["question"], "input_documents": doc})
         rag_dataset.append(
                 {"question" : row["question"],
-                 "answer" : answer["response"],
+                 "answer" : answer,
                  "contexts" : [context.page_content for context in answer["context"]],
                  "ground_truths" : [row["ground_truth"]]
                  }
