@@ -149,7 +149,7 @@ def create_ragas_dataset(rag_pipeline, dataset):
         rag_dataset.append(
                 {"question" : row["question"],
                  "answer" : answer,
-                 "contexts" : [context.page_content for context in answer["context"]],
+                 "contexts" : doc,
                  "ground_truths" : [row["ground_truth"]]
                  }
         )
