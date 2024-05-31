@@ -122,83 +122,107 @@ chain.run(input_documents = doc, question = query)
 
 
 from datasets import Dataset
+from tqdm import tqdm
 
 # Load test set
 test100 = pd.read_csv('100-phi3-llama3.csv')
+# Function to generate answers using RAG and retrieve context using vector store
+def generate_answer(question):
+    doc = vectorstore.similarity_search(question)
+    answer = chain.run(input_documents=doc, question=question)
+    return answer
 
-# Prepare dataset for batch processing
-dataset = Dataset.from_pandas(test100)
+# Create new columns for answers and context
+test100['answer'] = ""
+test100['context'] = ""
 
-from ragas.metrics import (
-    answer_relevancy,
-    faithfulness,
-    context_recall,
-    context_precision,
-    context_relevancy,
-    answer_correctness,
-    answer_similarity
-)
+# Loop through each question
+for index, row in tqdm(test100.iterrows(), total=len(test100)):
+    question = row['question']
+    
+    # Generate answer and retrieve context
+    answer = generate_answer(question)
+    context = doc  # Assuming you want to store the retrieved context
+    
+    # Store the answer and context in the DataFrame
+    test100.at[index, 'answer'] = answer
+    test100.at[index, 'context'] = context
 
-from ragas.metrics.critique import harmfulness
-from ragas import evaluate
 
-def create_ragas_dataset(chain, dataset, vectorstore):
-    rag_dataset = []
-    for idx, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        # Run the chain to get the answer
-        answer = chain.run(input_documents=vectorstore.similarity_search(row["question"]), question=row["question"])
+
+# # Prepare dataset for batch processing
+# dataset = Dataset.from_pandas(test100)
+
+# from ragas.metrics import (
+#     answer_relevancy,
+#     faithfulness,
+#     context_recall,
+#     context_precision,
+#     context_relevancy,
+#     answer_correctness,
+#     answer_similarity
+# )
+
+# from ragas.metrics.critique import harmfulness
+# from ragas import evaluate
+
+# def create_ragas_dataset(chain, dataset, vectorstore):
+#     rag_dataset = []
+#     for idx, row in tqdm(dataset.iterrows(), total=len(dataset)):
+#         # Run the chain to get the answer
+#         answer = chain.run(input_documents=vectorstore.similarity_search(row["question"]), question=row["question"])
         
-        # Generating context using vectorstore
-        context_str = vectorstore.similarity_search(row["question"])
-        context_list = context_str.split('\n')  # Split by newline character
+#         # Generating context using vectorstore
+#         context_str = vectorstore.similarity_search(row["question"])
+#         context_list = context_str.split('\n')  # Split by newline character
         
-        # Append the result to the dataset list
-        rag_dataset.append(
-            {
-                "question": row["question"],
-                "answer": answer,
-                "context": context_list,  # Store context as a list
-                "contexts": row["contexts"],
-                "ground_truth": row["ground_truth"],
-            }
-        )
+#         # Append the result to the dataset list
+#         rag_dataset.append(
+#             {
+#                 "question": row["question"],
+#                 "answer": answer,
+#                 "context": context_list,  # Store context as a list
+#                 "contexts": row["contexts"],
+#                 "ground_truth": row["ground_truth"],
+#             }
+#         )
     
-    # Convert list to DataFrame
-    rag_df = pd.DataFrame(rag_dataset)
+#     # Convert list to DataFrame
+#     rag_df = pd.DataFrame(rag_dataset)
     
-    # Convert DataFrame to Dataset
-    rag_eval_dataset = Dataset.from_pandas(rag_df)
+#     # Convert DataFrame to Dataset
+#     rag_eval_dataset = Dataset.from_pandas(rag_df)
     
-    return rag_eval_dataset
+#     return rag_eval_dataset
 
 
-def evaluate_ragas_dataset(ragas_dataset):
-  result = evaluate(
-    ragas_dataset,
-    llm=llm,
-    embeddings=embeddings,
-    metrics=[
-        context_precision,
-        faithfulness,
-        answer_relevancy,
-        context_recall,
-        context_relevancy,
-        answer_correctness,
-        answer_similarity
-    ],
-  )
-  return result
+# def evaluate_ragas_dataset(ragas_dataset):
+#   result = evaluate(
+#     ragas_dataset,
+#     llm=llm,
+#     embeddings=embeddings,
+#     metrics=[
+#         context_precision,
+#         faithfulness,
+#         answer_relevancy,
+#         context_recall,
+#         context_relevancy,
+#         answer_correctness,
+#         answer_similarity
+#     ],
+#   )
+#   return result
 
-from tqdm import tqdm
-import pandas as pd
+# from tqdm import tqdm
+# import pandas as pd
 
-qa_ragas_dataset4 = create_ragas_dataset(chain, dataset, vectorstore)
-qa_ragas_dataset4[0]
+# qa_ragas_dataset4 = create_ragas_dataset(chain, dataset, vectorstore)
+# qa_ragas_dataset4[0]
 
-qa_ragas_dataset4.to_csv('qa_ragas_dataset4.csv', index=False)
+# qa_ragas_dataset4.to_csv('qa_ragas_dataset4.csv', index=False)
 
-qa_result = evaluate_ragas_dataset(qa_ragas_dataset4)
-qa_result[0]
+# qa_result = evaluate_ragas_dataset(qa_ragas_dataset4)
+# qa_result[0]
 
 # # Function to process each question
 # def process_batch(batch):
