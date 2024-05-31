@@ -142,22 +142,21 @@ from ragas.metrics import (
 from ragas.metrics.critique import harmfulness
 from ragas import evaluate
 
-def create_ragas_dataset(rag_pipeline, dataset, vectorstore):
+def create_ragas_dataset(chain, dataset, vectorstore):
     rag_dataset = []
-    for row in tqdm(dataset):
-        # Retrieve documents relevant to the question
-        doc = vectorstore.similarity_search(row["question"])
-        
-        # Generate answer using the retrieved documents
-        answer = rag_pipeline({"question": row["question"], "input_documents": doc})
+    for idx, row in tqdm(dataset.iterrows(), total=len(dataset)):
+        # Run the chain to get the answer and context
+        answer = chain.run(input_documents=vectorstore.similarity_search(row["question"]), question=row["question"])
+        context = vectorstore.similarity_search(row["question"])  # Generating context using vectorstore
         
         # Append the result to the dataset list
         rag_dataset.append(
             {
                 "question": row["question"],
                 "answer": answer,
-                "contexts": [context.page_content for context in doc],
-                "ground_truth": row["ground_truth"]
+                "context": context,
+                "contexts": row["contexts"],
+                "ground_truth": row["ground_truth"],
             }
         )
     
@@ -168,6 +167,7 @@ def create_ragas_dataset(rag_pipeline, dataset, vectorstore):
     rag_eval_dataset = Dataset.from_pandas(rag_df)
     
     return rag_eval_dataset
+
 
 
 def evaluate_ragas_dataset(ragas_dataset):
@@ -190,12 +190,12 @@ def evaluate_ragas_dataset(ragas_dataset):
 from tqdm import tqdm
 import pandas as pd
 
-qa_ragas_dataset3 = create_ragas_dataset(chain, dataset, vectorstore)
-qa_ragas_dataset3[0]
+qa_ragas_dataset4 = create_ragas_dataset(chain, dataset, vectorstore)
+qa_ragas_dataset4[0]
 
-qa_ragas_dataset3.to_csv('qa_ragas_dataset3.csv', index=False)
+qa_ragas_dataset4.to_csv('qa_ragas_dataset4.csv', index=False)
 
-qa_result = evaluate_ragas_dataset(qa_ragas_dataset3)
+qa_result = evaluate_ragas_dataset(qa_ragas_dataset4)
 qa_result[0]
 
 # # Function to process each question
