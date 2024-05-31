@@ -145,7 +145,7 @@ from ragas import evaluate
 def create_ragas_dataset(rag_pipeline, dataset):
   rag_dataset = []
   for row in tqdm(dataset):
-    answer = rag_pipeline.invoke({"question" : row["question"]})
+    answer = rag_pipeline.invoke({"question" : row["question"]}, input_documents = doc)
     rag_dataset.append(
         {"question" : row["question"],
          "answer" : answer["response"],
@@ -175,7 +175,7 @@ def evaluate_ragas_dataset(ragas_dataset):
 from tqdm import tqdm
 import pandas as pd
 
-qa_ragas_dataset = create_ragas_dataset((chain.run(input_documents = doc, question = "question"), dataset))
+qa_ragas_dataset = create_ragas_dataset(chain, dataset)
 qa_ragas_dataset[0]
 
 qa_result = evaluate_ragas_dataset(qa_ragas_dataset)
@@ -227,7 +227,7 @@ qa_result[0]
 #     if '\nHelpful Answer:' in result:
 #         context, answer = result.split('\nHelpful Answer:', 1)
 #         context = context.strip()
-#         answer = answer.strip()
+#         answer = answer.strip()(chain.run(input_documents = doc, question = "question"), dataset)
 #     else:
 #         context = retrieved_context
 #         answer = "I don't know"
