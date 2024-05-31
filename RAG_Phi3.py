@@ -190,7 +190,7 @@ def evaluate_ragas_dataset(ragas_dataset):
 from tqdm import tqdm
 import pandas as pd
 
-qa_ragas_dataset2 = create_ragas_dataset(chain, dataset)
+qa_ragas_dataset2 = create_ragas_dataset(chain, dataset, vectorstore)
 qa_ragas_dataset2[0]
 
 qa_ragas_dataset2.to_csv('qa_ragas_dataset.csv', index=False)
