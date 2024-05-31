@@ -145,16 +145,19 @@ from ragas import evaluate
 def create_ragas_dataset(chain, dataset, vectorstore):
     rag_dataset = []
     for idx, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        # Run the chain to get the answer and context
+        # Run the chain to get the answer
         answer = chain.run(input_documents=vectorstore.similarity_search(row["question"]), question=row["question"])
-        context = vectorstore.similarity_search(row["question"])  # Generating context using vectorstore
+        
+        # Generating context using vectorstore
+        context_str = vectorstore.similarity_search(row["question"])
+        context_list = context_str.split('\n')  # Split by newline character
         
         # Append the result to the dataset list
         rag_dataset.append(
             {
                 "question": row["question"],
                 "answer": answer,
-                "context": context,
+                "context": context_list,  # Store context as a list
                 "contexts": row["contexts"],
                 "ground_truth": row["ground_truth"],
             }
@@ -167,7 +170,6 @@ def create_ragas_dataset(chain, dataset, vectorstore):
     rag_eval_dataset = Dataset.from_pandas(rag_df)
     
     return rag_eval_dataset
-
 
 
 def evaluate_ragas_dataset(ragas_dataset):
