@@ -160,6 +160,8 @@ def create_ragas_dataset(rag_pipeline, dataset):
 def evaluate_ragas_dataset(ragas_dataset):
   result = evaluate(
     ragas_dataset,
+    llm=llm,
+    embeddings=embeddings,
     metrics=[
         context_precision,
         faithfulness,
@@ -177,6 +179,8 @@ import pandas as pd
 
 qa_ragas_dataset = create_ragas_dataset(chain, dataset)
 qa_ragas_dataset[0]
+
+qa_ragas_dataset.to_csv('qa_ragas_dataset.csv', index=False)
 
 qa_result = evaluate_ragas_dataset(qa_ragas_dataset)
 qa_result[0]
