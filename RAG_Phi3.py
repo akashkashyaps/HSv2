@@ -142,20 +142,33 @@ from ragas.metrics import (
 from ragas.metrics.critique import harmfulness
 from ragas import evaluate
 
-def create_ragas_dataset(rag_pipeline, dataset):
+def create_ragas_dataset(rag_pipeline, dataset, vectorstore):
     rag_dataset = []
     for row in tqdm(dataset):
-        answer = rag_pipeline.invoke({"question" : row["question"], "input_documents": doc})
+        # Retrieve documents relevant to the question
+        doc = vectorstore.similarity_search(row["question"])
+        
+        # Generate answer using the retrieved documents
+        answer = rag_pipeline({"question": row["question"], "input_documents": doc})
+        
+        # Append the result to the dataset list
         rag_dataset.append(
-                {"question" : row["question"],
-                 "answer" : answer,
-                 "contexts" : doc,
-                 "ground_truths" : [row["ground_truth"]]
-                 }
+            {
+                "question": row["question"],
+                "answer": answer,
+                "contexts": [context.page_content for context in doc],
+                "ground_truths": row["ground_truth"]
+            }
         )
+    
+    # Convert list to DataFrame
     rag_df = pd.DataFrame(rag_dataset)
+    
+    # Convert DataFrame to Dataset
     rag_eval_dataset = Dataset.from_pandas(rag_df)
+    
     return rag_eval_dataset
+
 
 def evaluate_ragas_dataset(ragas_dataset):
   result = evaluate(
@@ -177,12 +190,12 @@ def evaluate_ragas_dataset(ragas_dataset):
 from tqdm import tqdm
 import pandas as pd
 
-qa_ragas_dataset = create_ragas_dataset(chain, dataset)
-qa_ragas_dataset[0]
+qa_ragas_dataset2 = create_ragas_dataset(chain, dataset)
+qa_ragas_dataset2[0]
 
-qa_ragas_dataset.to_csv('qa_ragas_dataset.csv', index=False)
+qa_ragas_dataset2.to_csv('qa_ragas_dataset.csv', index=False)
 
-qa_result = evaluate_ragas_dataset(qa_ragas_dataset)
+qa_result = evaluate_ragas_dataset(qa_ragas_dataset2)
 qa_result[0]
 
 # # Function to process each question
