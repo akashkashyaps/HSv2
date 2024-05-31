@@ -96,7 +96,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 #     persist_directory="/home/akash/HSv2"
 # )
 
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/', embedding_function=embeddings)
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2', embedding_function=embeddings)
 
 retriever = vectorstore.as_retriever()
 
@@ -153,15 +153,15 @@ test100.to_csv('processed_data.csv', index=False)
 # # Prepare dataset for batch processing
 # dataset = Dataset.from_pandas(test100)
 
-# from ragas.metrics import (
-#     answer_relevancy,
-#     faithfulness,
-#     context_recall,
-#     context_precision,
-#     context_relevancy,
-#     answer_correctness,
-#     answer_similarity
-# )
+from ragas.metrics import (
+    answer_relevancy,
+    faithfulness,
+    context_recall,
+    context_precision,
+    context_relevancy,
+    answer_correctness,
+    answer_similarity
+)
 
 # from ragas.metrics.critique import harmfulness
 # from ragas import evaluate
