@@ -103,15 +103,14 @@ retriever = vectorstore.as_retriever()
 
 prompt_template =("""
 <|user|>
-Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-NTU is Nottingham Trent University.It is not Singapore. Note this it is very important.
+NTU is Nottingham Trent University.It is not Singapore. Note this it is very important. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 {context}
-Question: {query}<|end|>
+Question: {question}<|end|>
 <|assistant|>
 Helpful Answer:
 """)
 
-prompt=PromptTemplate(template=prompt_template,input_variables=["context","query"])
+prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
@@ -165,9 +164,23 @@ import re
 
 from datasets import Dataset
 from tqdm import tqdm
-
+import pandas as pd
 # Load test set
 test100 = pd.read_csv('100-phi3-llama3.csv')
+questions = test100['question'].tolist()
+questions
+# Create an empty list to store the results
+results = []
+
+# Loop through each question
+for question in questions:
+    doc = vectorstore.similarity_search(question)
+    result = chain.run(input_documents=doc, question=question)
+    results.append(result)
+
+# Create a pandas DataFrame to store the results
+df = pd.DataFrame({"Question": questions, "Answer": results})
+df.to_csv('with_results.csv', index=False)
 # # Function to generate answers using RAG and retrieve context using vector store
 # def generate_answer(question):
 #     doc = vectorstore.similarity_search(question)
@@ -195,51 +208,51 @@ test100 = pd.read_csv('100-phi3-llama3.csv')
 # # Prepare dataset for batch processing
 # dataset = Dataset.from_pandas(test100)
 
-# Define the process_chain_output function
-def process_chain_output(chain_output):
-    # Find the start index of the context
-    context_start = chain_output.find("don't try to make up an answer.\n") + len("don't try to make up an answer.\n")
+# # Define the process_chain_output function
+# def process_chain_output(chain_output):
+#     # Find the start index of the context
+#     context_start = chain_output.find("don't try to make up an answer.\n") + len("don't try to make up an answer.\n")
     
-    # Extract relevant context
-    context_end = chain_output.find("Question:")
-    context = chain_output[context_start:context_end].strip()
+#     # Extract relevant context
+#     context_end = chain_output.find("Question:")
+#     context = chain_output[context_start:context_end].strip()
 
-    # Extract helpful answer
-    answer_pattern = re.compile(r"Helpful Answer: (.+?)(\n/)?\n", re.DOTALL)
-    match = answer_pattern.search(chain_output)
-    if match:
-        answer = match.group(1).strip()
-    else:
-        answer = "I don't know."  # Set default answer if no helpful answer found
+#     # Extract helpful answer
+#     answer_pattern = re.compile(r"Helpful Answer: (.+?)(\n/)?\n", re.DOTALL)
+#     match = answer_pattern.search(chain_output)
+#     if match:
+#         answer = match.group(1).strip()
+#     else:
+#         answer = "I don't know."  # Set default answer if no helpful answer found
 
-    return answer, context
+#     return answer, context
 
-# Define the process_question function
-def process_question(question):
-    # Run the chain on the question
-    doc = vectorstore.similarity_search(question)
-    chain_output = chain.run(input_documents=doc, question=question)
-    # Process the chain output to extract answer and context
-    answer, context = process_chain_output(chain_output)
-    return answer, context
+# # Define the process_question function
+# def process_question(question):
+#     # Run the chain on the question
+#     doc = vectorstore.similarity_search(question)
+#     chain_output = chain.run(input_documents=doc, question=question)
+#     # Process the chain output to extract answer and context
+#     answer, context = process_chain_output(chain_output)
+#     return answer, context
 
-# Create empty lists to store answers and contexts
-answers = []
-contexts = []
+# # Create empty lists to store answers and contexts
+# answers = []
+# contexts = []
 
-# Iterate over each question in the DataFrame
-for index, row in test100.iterrows():
-    question = row['question']  # Replace 'your_question_column_name' with the actual column name containing the questions
-    # Process the question
-    answer, context = process_question(question)
-    answers.append(answer)
-    contexts.append(context)
+# # Iterate over each question in the DataFrame
+# for index, row in test100.iterrows():
+#     question = row['question']  # Replace 'your_question_column_name' with the actual column name containing the questions
+#     # Process the question
+#     answer, context = process_question(question)
+#     answers.append(answer)
+#     contexts.append(context)
 
-# Add the answers and contexts lists to the DataFrame
-test100['answer'] = answers
-test100['context'] = contexts
+# # Add the answers and contexts lists to the DataFrame
+# test100['answer'] = answers
+# test100['context'] = contexts
 
-test100.to_csv('processed_data3.csv', index=False)
+# test100.to_csv('processed_data4.csv', index=False)
 
 # from ragas.metrics import (
 #     answer_relevancy,
