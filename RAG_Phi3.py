@@ -96,7 +96,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 #     persist_directory="/home/akash/HSv2"
 # )
 
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2', embedding_function=embeddings)
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2 ', embedding_function=embeddings)
 
 retriever = vectorstore.as_retriever()
 
@@ -116,9 +116,51 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","query
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff")
-query = "Are there any connections with local employers?"
-doc = vectorstore.similarity_search(query)
-chain.run(input_documents = doc, question = query)
+# query = "Are there any connections with local employers?"
+# doc = vectorstore.similarity_search(query)
+# chain.run(input_documents = doc, question = query)
+
+import re
+
+# def process_chain_output(chain_output):
+#     # Find the start index of the context
+#     context_start = chain_output.find("don't try to make up an answer.\n") + len("don't try to make up an answer.\n")
+    
+#     # Extract relevant context
+#     context_end = chain_output.find("Question:")
+#     context = chain_output[context_start:context_end].strip()
+
+#     # Extract helpful answer
+#     answer_pattern = re.compile(r"Helpful Answer: (.+?)\n", re.DOTALL)
+#     match = answer_pattern.search(chain_output)
+#     if match:
+#         answer = match.group(1).strip()
+#     else:
+#         answer = "I don't know."  # Set default answer if no helpful answer found
+
+#     return answer, context
+
+# # Test the function with the provided chain output
+# chain_output = """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+
+# Careers in Computer Science
+
+# The industry-focused nature of our courses ensures you stand out from the crowd when it comes to job applications and pursuing your future career. Our graduates are widely respected amongst employers and are perceived as having a competitive edge due to the hands-on approach of our teaching.
+
+# ...
+
+# Question: Are there any connections with local employers?
+# Helpful Answer: I don't know.
+
+# Answer: I don't know.
+
+# == response ==
+
+# While the provided information does not explicitly mention direct connections or partnerships between the university (NTU) and local employers, it is common for universities to establish relationships with nearby businesses for internships, collaborative projects, and recruitment opportunities. However, without specific details regarding such arrangements at NTU, we cannot confirm this aspect based solely on the given text."""
+
+# answer, context = process_chain_output(chain_output)
+# print("Answer:", answer)
+# print("\nContext:", context)
 
 
 from datasets import Dataset
@@ -126,42 +168,88 @@ from tqdm import tqdm
 
 # Load test set
 test100 = pd.read_csv('100-phi3-llama3.csv')
-# Function to generate answers using RAG and retrieve context using vector store
-def generate_answer(question):
-    doc = vectorstore.similarity_search(question)
-    answer = chain.run(input_documents=doc, question=question)
-    return answer
+# # Function to generate answers using RAG and retrieve context using vector store
+# def generate_answer(question):
+#     doc = vectorstore.similarity_search(question)
+#     answer = chain.run(input_documents=doc, question=question)
+#     return answer
 
-# Create new columns for answers and context
-test100['answer'] = ""
-test100['context'] = ""
+# # Create new columns for answers and context
+# test100['answer'] = ""
+# test100['context'] = ""
 
-# Loop through each question
-for index, row in tqdm(test100.iterrows(), total=len(test100)):
-    question = row['question']
+# # Loop through each question
+# for index, row in tqdm(test100.iterrows(), total=len(test100)):
+#     question = row['question']
     
-    # Generate answer and retrieve context
-    answer = generate_answer(question)
-    context = doc  # Assuming you want to store the retrieved context
+#     # Generate answer and retrieve context
+#     answer = generate_answer(question)
+#     context = doc  # Assuming you want to store the retrieved context
     
-    # Store the answer and context in the DataFrame
-    test100.at[index, 'answer'] = answer
-    test100.at[index, 'context'] = context
+#     # Store the answer and context in the DataFrame
+#     test100.at[index, 'answer'] = answer
+#     test100.at[index, 'context'] = context
 
-test100.to_csv('processed_data.csv', index=False)
+# test100.to_csv('processed_data2.csv', index=False)
 
 # # Prepare dataset for batch processing
 # dataset = Dataset.from_pandas(test100)
 
-from ragas.metrics import (
-    answer_relevancy,
-    faithfulness,
-    context_recall,
-    context_precision,
-    context_relevancy,
-    answer_correctness,
-    answer_similarity
-)
+# Define the process_chain_output function
+def process_chain_output(chain_output):
+    # Find the start index of the context
+    context_start = chain_output.find("don't try to make up an answer.\n") + len("don't try to make up an answer.\n")
+    
+    # Extract relevant context
+    context_end = chain_output.find("Question:")
+    context = chain_output[context_start:context_end].strip()
+
+    # Extract helpful answer
+    answer_pattern = re.compile(r"Helpful Answer: (.+?)(\n/)?\n", re.DOTALL)
+    match = answer_pattern.search(chain_output)
+    if match:
+        answer = match.group(1).strip()
+    else:
+        answer = "I don't know."  # Set default answer if no helpful answer found
+
+    return answer, context
+
+# Define the process_question function
+def process_question(question):
+    # Run the chain on the question
+    doc = vectorstore.similarity_search(question)
+    chain_output = chain.run(input_documents=doc, question=question)
+    # Process the chain output to extract answer and context
+    answer, context = process_chain_output(chain_output)
+    return answer, context
+
+# Create empty lists to store answers and contexts
+answers = []
+contexts = []
+
+# Iterate over each question in the DataFrame
+for index, row in test100.iterrows():
+    question = row['question']  # Replace 'your_question_column_name' with the actual column name containing the questions
+    # Process the question
+    answer, context = process_question(question)
+    answers.append(answer)
+    contexts.append(context)
+
+# Add the answers and contexts lists to the DataFrame
+test100['answer'] = answers
+test100['context'] = contexts
+
+test100.to_csv('processed_data3.csv', index=False)
+
+# from ragas.metrics import (
+#     answer_relevancy,
+#     faithfulness,
+#     context_recall,
+#     context_precision,
+#     context_relevancy,
+#     answer_correctness,
+#     answer_similarity
+# )
 
 # from ragas.metrics.critique import harmfulness
 # from ragas import evaluate
