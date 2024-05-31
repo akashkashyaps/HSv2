@@ -157,7 +157,7 @@ def create_ragas_dataset(rag_pipeline, dataset, vectorstore):
                 "question": row["question"],
                 "answer": answer,
                 "contexts": [context.page_content for context in doc],
-                "ground_truths": row["ground_truth"]
+                "ground_truth": row["ground_truth"]
             }
         )
     
@@ -190,12 +190,12 @@ def evaluate_ragas_dataset(ragas_dataset):
 from tqdm import tqdm
 import pandas as pd
 
-qa_ragas_dataset2 = create_ragas_dataset(chain, dataset, vectorstore)
-qa_ragas_dataset2[0]
+qa_ragas_dataset3 = create_ragas_dataset(chain, dataset, vectorstore)
+qa_ragas_dataset3[0]
 
-qa_ragas_dataset2.to_csv('qa_ragas_dataset.csv', index=False)
+qa_ragas_dataset3.to_csv('qa_ragas_dataset3.csv', index=False)
 
-qa_result = evaluate_ragas_dataset(qa_ragas_dataset2)
+qa_result = evaluate_ragas_dataset(qa_ragas_dataset3)
 qa_result[0]
 
 # # Function to process each question
