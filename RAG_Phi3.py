@@ -148,7 +148,7 @@ for index, row in tqdm(test100.iterrows(), total=len(test100)):
     test100.at[index, 'answer'] = answer
     test100.at[index, 'context'] = context
 
-
+test100.to_csv('processed_data.csv', index=False)
 
 # # Prepare dataset for batch processing
 # dataset = Dataset.from_pandas(test100)
