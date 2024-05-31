@@ -143,19 +143,19 @@ from ragas.metrics.critique import harmfulness
 from ragas import evaluate
 
 def create_ragas_dataset(rag_pipeline, dataset):
-  rag_dataset = []
-  for row in tqdm(dataset):
-    answer = rag_pipeline.invoke({"question" : row["question"]}, input_documents = doc)
-    rag_dataset.append(
-        {"question" : row["question"],
-         "answer" : answer["response"],
-         "contexts" : [context.page_content for context in answer["context"]],
-         "ground_truths" : [row["ground_truth"]]
-         }
-    )
-  rag_df = pd.DataFrame(rag_dataset)
-  rag_eval_dataset = Dataset.from_pandas(rag_df)
-  return rag_eval_dataset
+    rag_dataset = []
+    for row in tqdm(dataset):
+        answer = rag_pipeline.invoke({"question" : row["question"], "input_documents": doc})
+        rag_dataset.append(
+                {"question" : row["question"],
+                 "answer" : answer["response"],
+                 "contexts" : [context.page_content for context in answer["context"]],
+                 "ground_truths" : [row["ground_truth"]]
+                 }
+        )
+    rag_df = pd.DataFrame(rag_dataset)
+    rag_eval_dataset = Dataset.from_pandas(rag_df)
+    return rag_eval_dataset
 
 def evaluate_ragas_dataset(ragas_dataset):
   result = evaluate(
