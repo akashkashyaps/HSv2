@@ -98,7 +98,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 
 vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings)
 
-retriever = vectorstore.as_retriever(search_kwargs={'k': 1})
+retriever = vectorstore.as_retriever(search_kwargs={'k': 1}, max_tokens=2500)
 
 
 prompt_template =("""
