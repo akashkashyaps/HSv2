@@ -133,9 +133,31 @@ evaluation_set = pd.read_csv("evaluation_set.csv")
 # ]
 
 eval_dataset = Dataset.from_pandas(evaluation_set)
-eval_dataset
 
-qa_result = evaluate_ragas_dataset(eval_dataset)
+from typing import List, Union
+
+def convert_to_correct_format(data: List[Union[str, List[str]]]) -> List[List[str]]:
+    """
+    Convert the 'contexts' feature to the correct format.
+    
+    Args:
+    - data (List[Union[str, List[str]]]): List of contexts
+    
+    Returns:
+    - List[List[str]]: List of contexts converted to the correct format
+    """
+    # Convert each item to a list if it's not already a list
+    corrected_data = [[item] if isinstance(item, str) else item for item in data]
+    # Ensure all elements within each list are strings
+    corrected_data = [[str(sub_item) for sub_item in item] for item in corrected_data]
+    return corrected_data
+
+# Example usage:
+corrected_data = convert_to_correct_format(eval_dataset)
+print("Corrected 'contexts' data:", corrected_data)
+
+
+qa_result = evaluate_ragas_dataset(corrected_data)
 qa_result.to_csv("qa_result.csv", index=False)
 
 
