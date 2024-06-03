@@ -124,7 +124,7 @@ evaluation_set = pd.read_csv("evaluation_set.csv")
 ragas_dataset = [
     {
         "question": row["question"],
-        "context": row["context"],
+        # "context": row["context"],
         "ground_truth": row["answer"],
         "contexts": [row["contexts"]]
     }
