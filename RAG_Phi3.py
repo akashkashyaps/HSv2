@@ -103,9 +103,9 @@ retriever = vectorstore.as_retriever(search_kwargs={'k': 1}, max_tokens=2500)
 
 prompt_template =("""
 <|user|>
-NTU is Nottingham Trent University. Note this it is very important. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-Context: {context}<|end|>
-Question: {question}<|end|>
+For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+CONTEXT: {context}
+QUESTION: {question}<|end|>
 <|assistant|>
 Helpful Answer:
 """)
@@ -115,10 +115,10 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)   
-query = "Are there any connections with employers?"
-doc = retriever.get_relevant_documents(query)
-chain.run(input_documents = doc, question = query)
-doc
+# query = "Are there any connections with employers?"
+# doc = retriever.get_relevant_documents(query)
+# chain.run(input_documents = doc, question = query)
+# doc
 import re
 
 # def process_chain_output(chain_output):
@@ -166,21 +166,21 @@ from datasets import Dataset
 from tqdm import tqdm
 import pandas as pd
 # Load test set
-test100 = pd.read_csv('100-phi3-llama3.csv')
-questions = test100['question'].tolist()
+test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
+questions = test1000['question'].tolist()
 questions
 # Create an empty list to store the results
 results = []
 
 # Loop through each question
 for question in questions:
-    doc = vectorstore.similarity_search(question)
+    doc = retriever.get_relevant_documents(question)
     result = chain.run(input_documents=doc, question=question)
     results.append(result)
 
 # Create a pandas DataFrame to store the results
 df = pd.DataFrame({"Question": questions, "Answer": results})
-df.to_csv('results3.csv', index=False)
+df.to_csv('results4.csv', index=False)
 # # Function to generate answers using RAG and retrieve context using vector store
 # def generate_answer(question):
 #     doc = vectorstore.similarity_search(question)
