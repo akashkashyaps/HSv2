@@ -96,15 +96,15 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 #     persist_directory="/home/akash/HSv2"
 # )
 
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2 ', embedding_function=embeddings)
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings)
 
 retriever = vectorstore.as_retriever()
 
 
 prompt_template =("""
 <|user|>
-NTU is Nottingham Trent University.It is not Singapore. Note this it is very important. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-{context}
+NTU is Nottingham Trent University. Note this it is very important. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+Context: {context}<|end|>
 Question: {question}<|end|>
 <|assistant|>
 Helpful Answer:
@@ -114,11 +114,11 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
-chain = load_qa_chain(llm, chain_type="stuff")
-# query = "Are there any connections with local employers?"
-# doc = vectorstore.similarity_search(query)
-# chain.run(input_documents = doc, question = query)
-
+chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)   
+query = "Are there any connections with employers?"
+doc = vectorstore.similarity_search(query)
+chain.run(input_documents = doc, question = query)
+doc
 import re
 
 # def process_chain_output(chain_output):
