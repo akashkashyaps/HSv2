@@ -102,6 +102,7 @@ from ragas.metrics import (
 )
 from ragas.metrics.critique import harmfulness
 from ragas import evaluate
+from datasets import Dataset
 
 def evaluate_ragas_dataset(ragas_dataset):
   result = evaluate(
@@ -121,17 +122,20 @@ def evaluate_ragas_dataset(ragas_dataset):
   return result
 
 evaluation_set = pd.read_csv("evaluation_set.csv")
-ragas_dataset = [
-    {
-        "question": row["question"],
-        # "context": row["context"],
-        "ground_truth": row["answer"],
-        "contexts": [row["contexts"]]
-    }
-    for _, row in evaluation_set.iterrows()
-]
+# ragas_dataset = [
+#     {
+#         "question": row["question"],
+#         "context": row["context"],
+#         "ground_truth": row["answer"],
+#         "contexts": [row["contexts"]]
+#     }
+#     for _, row in evaluation_set.iterrows()
+# ]
 
-qa_result = evaluate_ragas_dataset(ragas_dataset)
+eval_dataset = Dataset.from_pandas(evaluation_set)
+eval_dataset
+
+qa_result = evaluate_ragas_dataset(eval_dataset)
 qa_result.to_csv("qa_result.csv", index=False)
 
 
