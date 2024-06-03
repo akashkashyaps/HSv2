@@ -116,7 +116,7 @@ llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)   
 query = "Are there any connections with employers?"
-doc = vectorstore.similarity_search(query)
+doc = retriever.get_relevant_documents(query)
 chain.run(input_documents = doc, question = query)
 doc
 import re
