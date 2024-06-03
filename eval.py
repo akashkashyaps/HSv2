@@ -70,26 +70,8 @@ model_kwargs = {"device": "cuda"}
 
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
-
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings)
-
-retriever = vectorstore.as_retriever(search_kwargs={'k': 1}, max_tokens=2500)
-
-
-prompt_template =("""
-<|user|>
-For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
-CONTEXT: {context}
-QUESTION: {question}<|end|>
-<|assistant|>
-Helpful Answer:
-""")
-
-prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
-
 llm = HuggingFacePipeline(pipeline=generate_text)
 
-chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)  
 
 from ragas.metrics import (
     answer_relevancy,
@@ -121,44 +103,26 @@ def evaluate_ragas_dataset(ragas_dataset):
   )
   return result
 
+import ast  # Import the ast module to safely evaluate string representations of lists
+
+def preprocess_data(data):
+    preprocessed_data = []
+    for _, row in data.iterrows():
+        contexts = ast.literal_eval(row["contexts"])  # Convert the string representation to a list
+        preprocessed_data.append({
+            "question": row["question"],
+            "context": row["context"],
+            "ground_truth": row["answer"],
+            "contexts": contexts  # Use the converted list as the "contexts" field
+        })
+    return preprocessed_data
+
 evaluation_set = pd.read_csv("evaluation_set.csv")
-# ragas_dataset = [
-#     {
-#         "question": row["question"],
-#         "context": row["context"],
-#         "ground_truth": row["answer"],
-#         "contexts": [row["contexts"]]
-#     }
-#     for _, row in evaluation_set.iterrows()
-# ]
+preprocessed_data = preprocess_data(evaluation_set)
 
-eval_dataset = Dataset.from_pandas(evaluation_set)
-
-from typing import List, Union
-
-def convert_to_correct_format(data: List[Union[str, List[str]]]) -> List[List[str]]:
-    """
-    Convert the 'contexts' feature to the correct format.
-    
-    Args:
-    - data (List[Union[str, List[str]]]): List of contexts
-    
-    Returns:
-    - List[List[str]]: List of contexts converted to the correct format
-    """
-    # Convert each item to a list if it's not already a list
-    corrected_data = [[item] if isinstance(item, str) else item for item in data]
-    # Ensure all elements within each list are strings
-    corrected_data = [[str(sub_item) for sub_item in item] for item in corrected_data]
-    return corrected_data
-
-# Example usage:
-corrected_data = convert_to_correct_format(eval_dataset)
-print("Corrected 'contexts' data:", corrected_data)
-
-
-qa_result = evaluate_ragas_dataset(corrected_data)
+qa_result = evaluate_ragas_dataset(preprocessed_data)
 qa_result.to_csv("qa_result.csv", index=False)
+
 
 
 
