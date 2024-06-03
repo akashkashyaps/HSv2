@@ -121,6 +121,18 @@ def evaluate_ragas_dataset(ragas_dataset):
   return result
 
 evaluation_set = pd.read_csv("evaluation_set.csv")
+ragas_dataset = [
+    {
+        "question": row["question"],
+        "context": row["context"],
+        "ground_truth": row["answer"],
+        "contexts": [row["contexts"]]
+    }
+    for _, row in evaluation_set.iterrows()
+]
 
-qa_result = evaluate_ragas_dataset(evaluation_set)
+qa_result = evaluate_ragas_dataset(ragas_dataset)
 qa_result.to_csv("qa_result.csv", index=False)
+
+
+
