@@ -90,7 +90,7 @@ dataset = Dataset.from_pandas(evaluation_set)
 #     return qa_result
 
 qa_result = evaluate_ragas_dataset(dataset)
-
+qa_result.to_csv("qa_result.csv", index=False)
 
 
 
