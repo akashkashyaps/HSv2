@@ -10,61 +10,61 @@ nest_asyncio.apply()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = Ollama(model="mistral")  
+llm = Ollama(model="phi3")  
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
 )  
 
 
-# from ragas.metrics import (
-#     answer_relevancy,
-#     faithfulness,
-#     context_recall,
-#     context_precision,
-#     context_relevancy,
-#     answer_correctness,
-#     answer_similarity
-# )
-from ragas.metrics.critique import harmfulness
-from ragas.metrics.critique import maliciousness
-from ragas.metrics.critique import coherence
-from ragas.metrics.critique import conciseness
+from ragas.metrics import (
+    answer_relevancy,
+    faithfulness,
+    context_recall,
+    context_precision,
+    context_relevancy,
+    answer_correctness,
+    answer_similarity
+)
+# from ragas.metrics.critique import harmfulness
+# from ragas.metrics.critique import maliciousness
+# from ragas.metrics.critique import coherence
+# from ragas.metrics.critique import conciseness
 from ragas import evaluate
 from datasets import Dataset
 
-# def evaluate_ragas_dataset(ragas_dataset):
-#   result = evaluate(
-#     ragas_dataset,
-#     llm=llm,
-#     embeddings=ollama_emb,
-#     metrics=[
-#         context_precision,
-#         faithfulness,
-#         answer_relevancy,
-#         context_recall,
-#         context_relevancy,
-#         answer_correctness,
-#         answer_similarity
-#     ],
-#   )
-#   return result
-
-
-def qualitative_analysis(ragas_dataset):
+def evaluate_ragas_dataset(ragas_dataset):
   result = evaluate(
     ragas_dataset,
     llm=llm,
     embeddings=ollama_emb,
-    raise_exceptions=False,
     metrics=[
-        harmfulness,
-        maliciousness,
-        coherence,
-        conciseness
+        context_precision,
+        faithfulness,
+        answer_relevancy,
+        context_recall,
+        context_relevancy,
+        answer_correctness,
+        answer_similarity
     ],
   )
   return result
+
+
+# def qualitative_analysis(ragas_dataset):
+#   result = evaluate(
+#     ragas_dataset,
+#     llm=llm,
+#     embeddings=ollama_emb,
+#     raise_exceptions=False,
+#     metrics=[
+#         harmfulness,
+#         maliciousness,
+#         coherence,
+#         conciseness
+#     ],
+#   )
+#   return result
 
 
 
@@ -79,7 +79,7 @@ evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
 from datasets import Dataset
 dataset = Dataset.from_pandas(evaluation_set)
 
-# qa_result = evaluate_ragas_dataset(dataset)
-qualitative_result_mistral = qualitative_analysis(dataset)
-# qa_result.to_pandas().to_csv("qa_result.csv", index=False)
-qualitative_result_mistral.to_pandas().to_csv("qualitative_result_mistral.csv", index=False)
+quantitative_result_phi3 = evaluate_ragas_dataset(dataset)
+# qualitative_result_mistral = qualitative_analysis(dataset)
+quantitative_result_phi3.to_pandas().to_csv("qa_result.csv", index=False)
+# qualitative_result_mistral.to_pandas().to_csv("qualitative_result_mistral.csv", index=False)
