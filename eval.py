@@ -65,7 +65,7 @@ evaluation_set
 
 # preprocessed_data = preprocess_data(evaluation_set)
 
-# from datasets import Dataset
+from datasets import Dataset
 
 # data = [
 #     {
@@ -77,18 +77,19 @@ evaluation_set
 #     for _, row in evaluation_set.iterrows()
 # ]
 
-# dataset = Dataset.from_dict(data)
+dataset = Dataset.from_pandas(evaluation_set)
 
+# dataset
+# def custom_evaluate_ragas_dataset(evaluation_set):
+#     def custom_remap_column_names(dataset, column_map):
+#         inverse_column_map = {v: k for k, v in column_map.items()}
+#         return dataset.rename(columns=inverse_column_map)
 
-def custom_evaluate_ragas_dataset(evaluation_set):
-    def custom_remap_column_names(dataset, column_map):
-        inverse_column_map = {v: k for k, v in column_map.items()}
-        return dataset.rename(columns=inverse_column_map)
+#     qa_result = evaluate_ragas_dataset(evaluation_set, custom_remap_column_names)
+#     return qa_result
 
-    qa_result = evaluate_ragas_dataset(evaluation_set, custom_remap_column_names)
-    return qa_result
+qa_result = evaluate_ragas_dataset(dataset)
 
-qa_result = custom_evaluate_ragas_dataset(evaluation_set)
 
 
 
