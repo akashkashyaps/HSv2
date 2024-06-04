@@ -80,8 +80,12 @@ evaluation_set
 # dataset = Dataset.from_dict(data)
 
 
-qa_result = evaluate_ragas_dataset(evaluation_set)
-qa_result.to_csv("qa_result.csv", index=False)
+def remap_column_names(dataset, column_map):
+    inverse_column_map = {v: k for k, v in column_map.items()}
+    return dataset.rename(columns=inverse_column_map)
+
+# Use the custom remap_column_names function
+qa_result = evaluate_ragas_dataset(evaluation_set, remap_column_names)
 
 
 
