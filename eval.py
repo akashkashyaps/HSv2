@@ -79,6 +79,6 @@ from datasets import Dataset
 dataset = Dataset.from_pandas(evaluation_set)
 
 # qa_result = evaluate_ragas_dataset(dataset)
-qualitative_result = qualitative_analysis(dataset)
+qualitative_result2 = qualitative_analysis(dataset)
 # qa_result.to_pandas().to_csv("qa_result.csv", index=False)
-qualitative_result.to_pandas().to_csv("qualitative_result.csv", index=False)
+qualitative_result2.to_pandas().to_csv("qualitative_result2.csv", index=False)
