@@ -10,7 +10,7 @@ nest_asyncio.apply()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = Ollama(model="phi3")  
+llm = Ollama(model="llama3")  
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -79,6 +79,6 @@ from datasets import Dataset
 dataset = Dataset.from_pandas(evaluation_set)
 
 # qa_result = evaluate_ragas_dataset(dataset)
-qualitative_result_phi3 = qualitative_analysis(dataset)
+qualitative_result_llama3 = qualitative_analysis(dataset)
 # qa_result.to_pandas().to_csv("qa_result.csv", index=False)
-qualitative_result_phi3.to_pandas().to_csv("qualitative_result_phi3.csv", index=False)
+qualitative_result_llama3.to_pandas().to_csv("qualitative_result_llama3.csv", index=False)
