@@ -33,7 +33,7 @@ def evaluate_ragas_dataset(ragas_dataset):
     llm=llm,
     embeddings=ollama_emb,
     metrics=[
-        context_precision,
+        # context_precision,
         faithfulness,
         answer_relevancy,
         # context_recall,
