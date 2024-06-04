@@ -89,6 +89,9 @@ dataset = Dataset.from_pandas(evaluation_set)
 #     qa_result = evaluate_ragas_dataset(evaluation_set, custom_remap_column_names)
 #     return qa_result
 
+import nest_asyncio
+nest_asyncio.apply()
+
 qa_result = evaluate_ragas_dataset(dataset)
 qa_result.to_csv("qa_result.csv", index=False)
 
