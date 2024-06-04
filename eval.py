@@ -65,22 +65,22 @@ evaluation_set
 
 # preprocessed_data = preprocess_data(evaluation_set)
 
-from datasets import Dataset
+# from datasets import Dataset
 
-data = [
-    {
-        "question": row["question"],
-        "context": row["context"],
-        "ground_truth": row["answer"],
-        "contexts": row["contexts"].split("\n") 
-    }
-    for _, row in evaluation_set.iterrows()
-]
+# data = [
+#     {
+#         "question": row["question"],
+#         "context": row["context"],
+#         "ground_truth": row["answer"],
+#         "contexts": row["contexts"].split("\n") 
+#     }
+#     for _, row in evaluation_set.iterrows()
+# ]
 
-dataset = Dataset.from_dict(data)
+# dataset = Dataset.from_dict(data)
 
 
-qa_result = evaluate_ragas_dataset(data)
+qa_result = evaluate_ragas_dataset(evaluation_set)
 qa_result.to_csv("qa_result.csv", index=False)
 
 
