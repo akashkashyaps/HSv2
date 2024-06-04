@@ -33,10 +33,10 @@ def evaluate_ragas_dataset(ragas_dataset):
     llm=llm,
     embeddings=ollama_emb,
     metrics=[
-        # context_precision,
+        context_precision,
         faithfulness,
         answer_relevancy,
-        # context_recall,
+        context_recall,
         context_relevancy,
         answer_correctness,
         answer_similarity
@@ -62,6 +62,7 @@ evaluation_set = pd.read_csv("evaluation_set.csv")
 # Convert the context column to a list of strings
 evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
 evaluation_set.drop(columns=["contexts"], inplace=True)
+evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
 
 # preprocessed_data = preprocess_data(evaluation_set)
 
