@@ -44,6 +44,8 @@ def evaluate_ragas_dataset(ragas_dataset):
   )
   return result
 
+
+
 # import ast  # Import the ast module to safely evaluate string representations of lists
 
 # def preprocess_data(data):
@@ -93,7 +95,7 @@ import nest_asyncio
 nest_asyncio.apply()
 
 qa_result = evaluate_ragas_dataset(dataset)
-qa_result.to_csv("qa_result.csv", index=False)
+qa_result.to_pandas().to_csv("qa_result.csv", index=False)
 
 
 
