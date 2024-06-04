@@ -80,12 +80,15 @@ evaluation_set
 # dataset = Dataset.from_dict(data)
 
 
-def remap_column_names(dataset, column_map):
-    inverse_column_map = {v: k for k, v in column_map.items()}
-    return dataset.rename(columns=inverse_column_map)
+def custom_evaluate_ragas_dataset(evaluation_set):
+    def custom_remap_column_names(dataset, column_map):
+        inverse_column_map = {v: k for k, v in column_map.items()}
+        return dataset.rename(columns=inverse_column_map)
 
-# Use the custom remap_column_names function
-qa_result = evaluate_ragas_dataset(evaluation_set, remap_column_names)
+    qa_result = evaluate_ragas_dataset(evaluation_set, custom_remap_column_names)
+    return qa_result
+
+qa_result = custom_evaluate_ragas_dataset(evaluation_set)
 
 
 
