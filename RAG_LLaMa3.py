@@ -4,13 +4,14 @@ import transformers
 import pandas as pd
 import numpy as np
 from torch import cuda, bfloat16
-from langchain.llms import HuggingFacePipeline
+from langchain_huggingface import HuggingFacePipeline
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
-from transformers import StoppingCriteriaList, StoppingCriteria
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
+from datasets import Dataset
+
 
 # Define the model
 model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -32,7 +33,7 @@ bnb_config = transformers.BitsAndBytesConfig(
 
 model_config = transformers.AutoConfig.from_pretrained(
     model_id,
-    use_auth_token=hf_auth,
+    token=hf_auth,
     trust_remote_code=True
 )
 model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -95,3 +96,20 @@ chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 query = "Are there any connections with employers?"
 doc = retriever.get_relevant_documents(query)
 chain.run(input_documents = doc, question = query)
+
+# Load test set
+test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
+questions = test1000['question'].tolist()
+questions
+# Create an empty list to store the results
+results = []
+
+# Loop through each question
+for question in questions:
+    doc = retriever.get_relevant_documents(question)
+    result = chain.run(input_documents=doc, question=question)
+    results.append(result)
+
+# Create a pandas DataFrame to store the results
+df = pd.DataFrame({"Question": questions, "Answer": results})
+df.to_csv('results_llama.csv', index=False)
