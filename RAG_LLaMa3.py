@@ -17,7 +17,7 @@ model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
 hf_auth = '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'
 tokenizer = transformers.AutoTokenizer.from_pretrained(
     model_id,
-    use_auth_token=hf_auth,
+    token=hf_auth,
     trust_remote_code=True
 )
 device = f'cuda:{cuda.current_device()}' if cuda.is_available() else 'cpu'
@@ -41,7 +41,7 @@ model = transformers.AutoModelForCausalLM.from_pretrained(
     config=model_config,
     quantization_config=bnb_config,
     device_map='auto',
-    use_auth_token=hf_auth,
+    token=hf_auth,
 )   
 
 terminators = [
