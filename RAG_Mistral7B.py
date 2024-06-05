@@ -15,7 +15,7 @@ from datasets import Dataset
 
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
-hf_auth = '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'
+hf_auth = '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'
 tokenizer = transformers.AutoTokenizer.from_pretrained(
     model_id,
     token=hf_auth,
