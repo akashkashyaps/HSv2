@@ -14,7 +14,7 @@ from langchain.prompts import PromptTemplate
 
 # Define the model
 model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
-hf_auth = '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'
+hf_auth = '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'
 tokenizer = transformers.AutoTokenizer.from_pretrained(
     model_id,
     token=hf_auth,
