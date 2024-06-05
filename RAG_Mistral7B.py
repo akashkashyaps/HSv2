@@ -98,19 +98,19 @@ query = "Are there any connections with employers?"
 doc = retriever.get_relevant_documents(query)
 chain.run(input_documents = doc, question = query)
 
-# # Load test set
-# test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
-# questions = test1000['question'].tolist()
-# questions
-# # Create an empty list to store the results
-# results = []
+# Load test set
+test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
+questions = test1000['question'].tolist()
+questions
+# Create an empty list to store the results
+results = []
 
-# # Loop through each question
-# for question in questions:
-#     doc = retriever.get_relevant_documents(question)
-#     result = chain.run(input_documents=doc, question=question)
-#     results.append(result)
+# Loop through each question
+for question in questions:
+    doc = retriever.get_relevant_documents(question)
+    result = chain.run(input_documents=doc, question=question)
+    results.append(result)
 
-# # Create a pandas DataFrame to store the results
-# df = pd.DataFrame({"Question": questions, "Answer": results})
-# df.to_csv('results_llama.csv', index=False)
+# Create a pandas DataFrame to store the results
+df = pd.DataFrame({"Question": questions, "Answer": results})
+df.to_csv('results_mistral.csv', index=False)
