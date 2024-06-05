@@ -181,6 +181,8 @@ for question in questions:
 # Create a pandas DataFrame to store the results
 df = pd.DataFrame({"Question": questions, "Answer": results})
 df.to_csv('results4.csv', index=False)
+
+
 # # Function to generate answers using RAG and retrieve context using vector store
 # def generate_answer(question):
 #     doc = vectorstore.similarity_search(question)
