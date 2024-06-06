@@ -69,7 +69,7 @@ def qualitative_analysis(ragas_dataset):
 
 
 
-evaluation_set = pd.read_csv("Phi3+LLaMa-CHATBOT_LLaMa.csv")
+evaluation_set = pd.read_csv("Phi3+LLaMa-CHATBOT_Mistral7B.csv")
 # evaluation_set = evaluation_set.head(5)
 # Convert the context column to a list of strings
 evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
@@ -83,4 +83,4 @@ dataset = Dataset.from_pandas(evaluation_set)
 # quantitative_result_qwen = evaluate_ragas_dataset(dataset)
 qualitative_result_gemma = qualitative_analysis(dataset)
 # quantitative_result_qwen.to_pandas().to_csv("quantitative_result_qwen.csv", index=False)
-qualitative_result_gemma.to_pandas().to_csv("Base_LLaMa3-Evaluator_Gemma-qualitative.csv", index=False)
+qualitative_result_gemma.to_pandas().to_csv("Base_Mistral7B-Evaluator_Gemma-qualitative.csv", index=False)
