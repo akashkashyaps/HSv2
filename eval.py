@@ -10,7 +10,7 @@ nest_asyncio.apply()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = Ollama(model="llama3")  
+llm = Ollama(model="gemma")  
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -80,7 +80,7 @@ evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
 from datasets import Dataset
 dataset = Dataset.from_pandas(evaluation_set)
 
-quantitative_result_llama = evaluate_ragas_dataset(dataset)
+quantitative_result_gemma = evaluate_ragas_dataset(dataset)
 # qualitative_result_qwen = qualitative_analysis(dataset)
-quantitative_result_llama.to_pandas().to_csv("Base_LLaMa3-Evaluator_LLaMa3-quantitative.csv", index=False)
+quantitative_result_gemma.to_pandas().to_csv("Base_LLaMa3-Evaluator_Gemma-quantitative.csv", index=False)
 # qualitative_result_qwen.to_pandas().to_csv("Base_Mistral7B-Evaluator_Qwen-qualitative.csv", index=False)
