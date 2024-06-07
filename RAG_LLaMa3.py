@@ -93,23 +93,53 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "Are there any connections with employers?"
-doc = retriever.get_relevant_documents(query)
-chain.run(input_documents = doc, question = query)
+# query = "Are there any connections with employers?"
+# doc = retriever.get_relevant_documents(query)
+# chain.run(input_documents = doc, question = query)
 
+# # Load test set
+# test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
+# questions = test1000['question'].tolist()
+# questions
+# # Create an empty list to store the results
+# results = []
+
+# # Loop through each question
+# for question in questions:
+#     doc = retriever.get_relevant_documents(question)
+#     result = chain.run(input_documents=doc, question=question)
+#     results.append(result)
+
+# # Create a pandas DataFrame to store the results
+# df = pd.DataFrame({"Question": questions, "Answer": results})
+# df.to_csv('results_llama.csv', index=False)
+
+import time
+from datasets import Dataset
+from tqdm import tqdm
+import pandas as pd
 # Load test set
 test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
 questions = test1000['question'].tolist()
-questions
-# Create an empty list to store the results
+
+# Create empty lists to store the results and the time taken
 results = []
+time_taken_list = []
 
 # Loop through each question
-for question in questions:
+for question in tqdm(questions):
+    start = time.time()  # Start timing
+    
     doc = retriever.get_relevant_documents(question)
     result = chain.run(input_documents=doc, question=question)
+    
+    end = time.time()  # End timing
+    
+    time_taken = end - start
+    time_taken_list.append(time_taken)  # Store time taken
+    
     results.append(result)
 
-# Create a pandas DataFrame to store the results
-df = pd.DataFrame({"Question": questions, "Answer": results})
-df.to_csv('results_llama.csv', index=False)
+# Create a pandas DataFrame to store the results and time taken
+df = pd.DataFrame({"Question": questions, "Answer": results, "Time_Taken": time_taken_list})
+df.to_csv('Llama_time.csv', index=False)
