@@ -144,4 +144,4 @@ for question in tqdm(questions):
 
 # Create a pandas DataFrame to store the results and time taken
 df = pd.DataFrame({"Question": questions, "Answer": results, "Time_Taken": time_taken_list})
-df.to_csv('Phi_time.csv', index=False)
+df.to_csv('Mistral_time.csv', index=False)
