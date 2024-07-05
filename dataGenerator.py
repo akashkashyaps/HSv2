@@ -1,5 +1,5 @@
 from ragas.testset.generator import TestsetGenerator  
-from ragas.testset.evolutions import simple, reasoning, multi_context  
+from ragas.testset.evolutions import simple, reasoning, multi_context, conditional  
 from langchain.text_splitter import RecursiveCharacterTextSplitter  
 # from langchain.document_loaders import SeleniumURLLoader  
 from langchain_community.llms import Ollama  
@@ -41,21 +41,82 @@ import json
 
 from langchain.schema import Document
 # Load JSON data from file
-def load_documents_from_json(filename):
-    with open(filename, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return [Document(page_content=doc["page_content"], metadata=doc["metadata"]) for doc in data]
+# # def load_documents_from_json(filename):
+# #     with open(filename, 'r', encoding='utf-8') as f:
+# #         data = json.load(f)
+# #     return [Document(page_content=doc["page_content"], metadata=doc["metadata"]) for doc in data]
 
-# Load the documents
-loaded_documents = load_documents_from_json("documents.json")
+# # # Load the documents
+# # loaded_documents = load_documents_from_json("documents.json")
+# import re
+# from docx import Document as DocxDocument
+# from langchain.schema import Document
 
-# # Verify the first loaded document
-# if loaded_documents:
-#     print("First loaded document:")
-#     print(f"Content: {loaded_documents[0].page_content}")
-#     print(f"Metadata: {loaded_documents[0].metadata}")
-# else:
-#     print("No documents found in the loaded data.")
+# def load_documents_from_docx(filename):
+#     docx = DocxDocument(filename)
+#     full_text = []
+#     metadata = {}
+#     documents = []
+
+#     current_metadata = None
+#     current_text = []
+
+#     # Define regex patterns
+#     source_pattern = re.compile(r"^Source:\s*(.*)$")
+#     metadata_pattern = re.compile(r"^Metadata:\s*(.*)$")
+#     text_pattern = re.compile(r"^Text:\s*$")
+
+#     for para in docx.paragraphs:
+#         text = para.text.strip()
+
+#         if source_pattern.match(text):
+#             # Save the previous document if it exists
+#             if current_metadata and current_text:
+#                 documents.append(Document(page_content="\n".join(current_text), metadata=current_metadata))
+#                 current_text = []
+
+#             current_metadata = {"source": source_pattern.match(text).group(1)}
+        
+#         elif metadata_pattern.match(text):
+#             if current_metadata is not None:
+#                 current_metadata["metadata"] = metadata_pattern.match(text).group(1)
+        
+#         elif text_pattern.match(text):
+#             continue  # Skip the "Text:" line
+        
+#         else:
+#             if current_metadata is not None:
+#                 current_text.append(text)
+    
+#     # Add the last document
+#     if current_metadata and current_text:
+#         documents.append(Document(page_content="\n".join(current_text), metadata=current_metadata))
+    
+#     return documents
+
+# # # Verify the first loaded document
+# # if loaded_documents:
+# #     print("First loaded document:")
+# #     print(f"Content: {loaded_documents[0].page_content}")
+# #     print(f"Metadata: {loaded_documents[0].metadata}")
+# # else:
+# #     print("No documents found in the loaded data.")
+
+# loaded_documents = load_documents_from_docx("CS_OpenDay_General.docx")
+# for doc in loaded_documents:
+#     print(f"Page Content: {doc.page_content}")
+#     print(f"Metadata: {doc.metadata}")
+#     print("\n----------------------\n")
+
+from langchain_community.document_loaders import Docx2txtLoader
+
+loader = Docx2txtLoader("CS_OpenDay_General.docx")
+
+loaded_documents = loader.load()
+
+
+for document in loaded_documents:
+    document.metadata['filename'] = document.metadata['source']
 
 # Recreate the text splitter
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
@@ -108,10 +169,10 @@ generator = TestsetGenerator.from_langchain(
 # documents = vectordb.get()
 
 # generate testset
-testset = generator.generate_with_langchain_docs(recreated_splits, test_size=1000, distributions={simple: 0.5, reasoning: 0.25, multi_context: 0.25}, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
+testset = generator.generate_with_langchain_docs(recreated_splits, test_size=10, distributions={simple: 0.5, reasoning: 0.20, multi_context: 0.15, conditional: 0.15 }, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
 
 test_df = testset.to_pandas()  
-test_df.to_csv('testset7.csv', index=False)  
+test_df.to_csv('ROBIN_testset1.csv', index=False)  
 import pandas as pd
 
 # # Function to generate and save test sets in chunks
