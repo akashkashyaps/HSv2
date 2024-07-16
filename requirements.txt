@@ -8,3 +8,5 @@ bitsandbytes
 accelerate
 langchain-community
 ollama
+langchain_experimental
+python-docx
