@@ -75,18 +75,21 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-from langchain.document_loaders import WordDocumentLoader
+from langchain_core.document_loaders import Blob
+from langchain.document_loaders import UnstructuredWordDocumentLoader
 
-# Initialize the loader
-loader = WordDocumentLoader("CS_OpenDay_General.docx")
+docx_file_path = "CS_OpenDay_General.docx"
+loader = UnstructuredWordDocumentLoader(docx_file_path, mode="elements")
+data = loader.load()
+data
 
 # loader = Docx2txtLoader("CS_OpenDay_General.docx")
-documents = loader.load()
+# documents = loader.load()
 
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
 )
-docs = text_splitter.create_documents(documents)
+docs = text_splitter.create_documents(data)
 
 vectorstore = Chroma.from_documents(
     docs,
