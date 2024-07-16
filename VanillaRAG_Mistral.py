@@ -81,8 +81,7 @@ documents = loader.load()
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
 )
-docs = text_splitter.create_documents([documents])
-print(docs[0].page_content)
+docs = text_splitter.create_documents(documents)
 
 vectorstore = Chroma.from_documents(
     docs,
