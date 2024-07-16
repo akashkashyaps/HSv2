@@ -75,15 +75,19 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-from langchain_community.document_loaders import UnstructuredWordDocumentLoader
-
+import docx
 docx_file_path = "CS_OpenDay_General.docx"
-loader = UnstructuredWordDocumentLoader(docx_file_path, mode="elements")
-data = loader.load()
-data
 
-# loader = Docx2txtLoader("CS_OpenDay_General.docx")
-# documents = loader.load()
+def extract_text_from_docx(docx_file):
+    doc = docx.Document(docx_file)
+    full_text = []
+    for para in doc.paragraphs:
+        full_text.append(para.text)
+    return '\n'.join(full_text)
+
+# Extract text from docx
+data = extract_text_from_docx(docx_file_path)
+data
 
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
