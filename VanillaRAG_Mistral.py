@@ -75,8 +75,7 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-from langchain_core.document_loaders import Blob
-from langchain.document_loaders import UnstructuredWordDocumentLoader
+from langchain_community.document_loaders import UnstructuredWordDocumentLoader
 
 docx_file_path = "CS_OpenDay_General.docx"
 loader = UnstructuredWordDocumentLoader(docx_file_path, mode="elements")
