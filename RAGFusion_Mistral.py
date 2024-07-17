@@ -103,7 +103,7 @@ vectorstore = Chroma.from_documents(
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
-retriever_BM25 = BM25Retriever.from_documents(docs, search_kwargs={"k": 4})
+retriever_BM25 = BM25Retriever.from_texts(data, search_kwargs={"k": 4})
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = EnsembleRetriever(
