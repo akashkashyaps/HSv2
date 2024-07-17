@@ -78,31 +78,34 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-import docx
-docx_file_path = "CS_OpenDay_General.docx"
+# import docx
+# docx_file_path = "CS_OpenDay_General.docx"
 
-def extract_text_from_docx(docx_file):
-    doc = docx.Document(docx_file)
-    full_text = []
-    for para in doc.paragraphs:
-        full_text.append(para.text)
-    return '\n'.join(full_text)
+# def extract_text_from_docx(docx_file):
+#     doc = docx.Document(docx_file)
+#     full_text = []
+#     for para in doc.paragraphs:
+#         full_text.append(para.text)
+#     return '\n'.join(full_text)
 
-# Extract text from docx
-data = extract_text_from_docx(docx_file_path)
-data
+# # Extract text from docx
+# data = extract_text_from_docx(docx_file_path)
+# data
 
-text_splitter = SemanticChunker(
-    embeddings, breakpoint_threshold_type="percentile"
-)
-docs = text_splitter.create_documents(data)
+# text_splitter = SemanticChunker(
+#     embeddings, breakpoint_threshold_type="percentile"
+# )
+# docs = text_splitter.create_documents(data)
 
-vectorstore = Chroma.from_documents(
-    docs,
-    embeddings,
-    collection_name="CS_OpenDay_General",
-    persist_directory="/home/akash/HSv2"
-)
+# vectorstore = Chroma.from_documents(
+#     docs,
+#     embeddings,
+#     collection_name="CS_OpenDay_General",
+#     persist_directory="/home/akash/HSv2"
+# )
+
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings, collection_name="CS_OpenDay_General")
+
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 multi_query_retriever = MultiQueryRetriever.from_llm(
