@@ -92,14 +92,7 @@ data
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
 )
-docs = text_splitter.create_documents(data)
-
-vectorstore = Chroma.from_documents(
-    docs,
-    embeddings,
-    collection_name="CS_OpenDay_General",
-    persist_directory="/home/akash/HSv2"
-)
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings, collection_name="CS_OpenDay_General")
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
@@ -134,6 +127,7 @@ llm = HuggingFacePipeline(pipeline=generate_text)
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 query = "Are there any connections with employers?"
 ensemble_context = ensemble_retriever.invoke(query)
+ensemble_context
 results = chain.run(input_documents = ensemble_context, question = query)
 print(results)
 
