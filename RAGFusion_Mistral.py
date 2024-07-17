@@ -92,7 +92,7 @@ data
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
 )
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings, collection_name="CS_OpenDay_General")
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/HSv2', embedding_function=embeddings, collection_name="CS_OpenDay_General")
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
