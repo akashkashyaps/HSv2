@@ -13,7 +13,7 @@ from langchain.prompts import PromptTemplate
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from langchain_core.output_parsers import StructuredOutputParser, ResponseSchema
+from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from langchain_core.exceptions import OutputParserException
 from langchain.retrievers.multi_query import MultiQueryRetriever
 
