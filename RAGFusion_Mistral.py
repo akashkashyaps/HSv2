@@ -136,5 +136,6 @@ llm = HuggingFacePipeline(pipeline=generate_text)
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 query = "Are there any connections with employers?"
 ensemble_context = ensemble_retriever.get_relevant_documents(query)
-chain.run(input_documents = ensemble_context, question = query,return_only_outputs=True)
+results = chain.run(input_documents = ensemble_context, question = query)
+print(results)
 
