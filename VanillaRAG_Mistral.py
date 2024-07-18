@@ -98,7 +98,7 @@ vectorstore = Chroma.from_documents(
     docs,
     embeddings,
     collection_name="CS_OpenDay_General",
-    persist_directory="/home/akash/HSv2"
+    persist_directory="/home/akash/HSv2/HSv2/vecdb"
 )
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
@@ -122,5 +122,5 @@ llm = HuggingFacePipeline(pipeline=generate_text)
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 query = "Are there any connections with employers?"
 doc = retriever_vanilla.get_relevant_documents(query)
-chain.run(input_documents = doc, question = query)
-
+results = chain.run(input_documents = doc, question = query)
+print(results)
