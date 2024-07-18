@@ -124,7 +124,7 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "Are there any connections with employers?"
+query = "Where can I get a job after graduation?"
 doc = retriever_vanilla.get_relevant_documents(query)
 results = chain.run(input_documents = doc, question = query)
 print(results)
