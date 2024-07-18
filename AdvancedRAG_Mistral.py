@@ -133,7 +133,7 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "Are there any connections with employers?"
+query = "What have previous students gone on to do after graduating?"
 ensemble_context = multi_query_retriever.invoke(query)
 results = chain.run(input_documents = ensemble_context, question = query)
 print(results)
