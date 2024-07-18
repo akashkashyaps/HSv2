@@ -13,6 +13,7 @@ from langchain.prompts import PromptTemplate
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 # Define the model
@@ -75,28 +76,29 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-import docx
-docx_file_path = "CS_OpenDay_General.docx"
 
-def extract_text_from_docx(docx_file):
-    doc = docx.Document(docx_file)
-    full_text = []
-    for para in doc.paragraphs:
-        full_text.append(para.text)
-    return '\n'.join(full_text)
+from langchain_community.document_loaders import Docx2txtLoader
 
-# Extract text from docx
-data = extract_text_from_docx(docx_file_path)
-data
+loader = Docx2txtLoader("CS_OpenDay_General.docx")
 
-text_splitter = SemanticChunker(
-    embeddings, breakpoint_threshold_type="percentile"
-)
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/HSv2', embedding_function=embeddings, collection_name="CS_OpenDay_General")
+loaded_documents = loader.load()
+
+
+for document in loaded_documents:
+    document.metadata['filename'] = document.metadata['source']
+
+# Recreate the text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+
+# Split the loaded documents into chunks
+recreated_splits = text_splitter.split_documents(loaded_documents)
+recreated_splits
+
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/vecdb', embedding_function=embeddings, collection_name="CS_OpenDay")
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
-retriever_BM25 = BM25Retriever.from_texts(data, search_kwargs={"k": 4})
+retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 4})
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = EnsembleRetriever(
