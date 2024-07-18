@@ -13,7 +13,7 @@ from langchain.prompts import PromptTemplate
 from datasets import Dataset
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_experimental.text_splitter import SemanticChunker
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
@@ -75,29 +75,33 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-import docx
-docx_file_path = "CS_OpenDay_General.docx"
+from langchain_community.document_loaders import Docx2txtLoader
 
-def extract_text_from_docx(docx_file):
-    doc = docx.Document(docx_file)
-    full_text = []
-    for para in doc.paragraphs:
-        full_text.append(para.text)
-    return '\n'.join(full_text)
+loader = Docx2txtLoader("CS_OpenDay_General.docx")
 
-# Extract text from docx
-data = extract_text_from_docx(docx_file_path)
-data
+loaded_documents = loader.load()
 
-text_splitter = SemanticChunker(
-    embeddings, breakpoint_threshold_type="percentile"
-)
-docs = text_splitter.create_documents([data])
-docs
+
+for document in loaded_documents:
+    document.metadata['filename'] = document.metadata['source']
+
+# Recreate the text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+
+# Split the loaded documents into chunks
+recreated_splits = text_splitter.split_documents(loaded_documents)
+recreated_splits
+
+# text_splitter = SemanticChunker(
+#     embeddings, breakpoint_threshold_type="percentile"
+# )
+
+# docs = text_splitter.create_documents([data])
+# docs
 vectorstore = Chroma.from_documents(
-    docs,
+    recreated_splits,
     embeddings,
-    collection_name="CS_OpenDay_General",
+    collection_name="CS_OpenDay",
     persist_directory="/home/akash/HSv2/HSv2/vecdb"
 )
 
@@ -120,7 +124,7 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "Are there any connections with employers?"
+query = "Are there any connections with companies?"
 doc = retriever_vanilla.get_relevant_documents(query)
 results = chain.run(input_documents = doc, question = query)
 print(results)
