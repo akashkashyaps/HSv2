@@ -92,8 +92,8 @@ data
 text_splitter = SemanticChunker(
     embeddings, breakpoint_threshold_type="percentile"
 )
-docs = text_splitter.create_documents(data)
-
+docs = text_splitter.create_documents([data])
+docs
 vectorstore = Chroma.from_documents(
     docs,
     embeddings,
