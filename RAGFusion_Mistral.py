@@ -84,15 +84,50 @@ loader = Docx2txtLoader("CS_OpenDay_General.docx")
 loaded_documents = loader.load()
 
 
-for document in loaded_documents:
-    document.metadata['filename'] = document.metadata['source']
+def extract_metadata(text):
+    sections = text.split('Source:')[1:]  # Split by 'Source:' and remove the first empty part
+    all_metadata = []
+    
+    for section in sections:
+        metadata = {}
+        lines = section.split('\n')
+        metadata['source'] = lines[0].strip()
+        
+        for line in lines[1:]:
+            if line.startswith('Metadata:'):
+                metadata['about'] = line.replace('Metadata:', '').strip()
+                break
+        
+        all_metadata.append(metadata)
+    
+    return all_metadata
 
-# Recreate the text splitter
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+# After loading documents
+all_metadata = []
+for document in loaded_documents:
+    # Extract metadata from the document content
+    metadata_list = extract_metadata(document.page_content)
+    all_metadata.extend(metadata_list)
+
+# text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
 
 # Split the loaded documents into chunks
 recreated_splits = text_splitter.split_documents(loaded_documents)
-recreated_splits
+
+# Add chunk IDs and assign correct metadata to split documents
+current_metadata_index = 0
+for i, split in enumerate(recreated_splits):
+    split.metadata['chunk_id'] = i
+    
+    # Check if we need to update the current metadata
+    if 'Source:' in split.page_content:
+        if current_metadata_index < len(all_metadata):
+            split.metadata.update(all_metadata[current_metadata_index])
+            current_metadata_index += 1
+    elif current_metadata_index > 0:
+        # For chunks without 'Source:', use the last seen metadata
+        split.metadata.update(all_metadata[current_metadata_index - 1])
 
 vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/vecdb', embedding_function=embeddings, collection_name="CS_OpenDay")
 
@@ -127,9 +162,51 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "Are there any connections with employers?"
-ensemble_context = ensemble_retriever.invoke(query)
-ensemble_context
-results = chain.run(input_documents = ensemble_context, question = query)
-print(results)
+# query = "Are there any connections with employers?"
+# ensemble_context = ensemble_retriever.invoke(query)
+# ensemble_context
+# results = chain.run(input_documents = ensemble_context, question = query)
+# print(results)
 
+import time
+from datasets import Dataset
+from tqdm import tqdm
+import pandas as pd
+
+# Create test set
+testVanilla = pd.read_csv('CS_OpenDay_General.csv')
+questions = testVanilla['question'].tolist()
+
+# Create empty lists to store the results and the time taken
+results = []
+retrieval_time_list = []
+chain_time_list = []
+
+# Loop through each question
+for question in tqdm(questions):
+    # Time the document retrieval process
+    start_retrieval = time.time()
+    doc = ensemble_retriever.get_relevant_documents(question)
+    end_retrieval = time.time()
+    
+    retrieval_time = end_retrieval - start_retrieval
+    retrieval_time_list.append(retrieval_time)  # Store retrieval time
+    
+    # Time the chain run process
+    start_chain = time.time()
+    result = chain.run(input_documents=doc, question=question)
+    end_chain = time.time()
+    
+    chain_time = end_chain - start_chain
+    chain_time_list.append(chain_time)  # Store chain run time
+    
+    results.append(result)
+
+# Create a pandas DataFrame to store the results and times taken
+df = pd.DataFrame({
+    "Question": questions,
+    "Answer": results,
+    "Retrieval_Time": retrieval_time_list,
+    "Chain_Time": chain_time_list
+})
+df.to_csv('Results_Fusion.csv', index=False)

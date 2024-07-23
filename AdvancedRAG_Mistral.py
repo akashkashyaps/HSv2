@@ -133,7 +133,50 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-query = "What have previous students gone on to do after graduating?"
-ensemble_context = multi_query_retriever.invoke(query)
-results = chain.run(input_documents = ensemble_context, question = query)
-print(results)
+# query = "What have previous students gone on to do after graduating?"
+# ensemble_context = multi_query_retriever.invoke(query)
+# results = chain.run(input_documents = ensemble_context, question = query)
+# print(results)
+
+import time
+from datasets import Dataset
+from tqdm import tqdm
+import pandas as pd
+
+# Create test set
+testVanilla = pd.read_csv('CS_OpenDay_General.csv')
+questions = testVanilla['question'].tolist()
+
+# Create empty lists to store the results and the time taken
+results = []
+retrieval_time_list = []
+chain_time_list = []
+
+# Loop through each question
+for question in tqdm(questions):
+    # Time the document retrieval process
+    start_retrieval = time.time()
+    doc = multi_query_retriever.get_relevant_documents(question)
+    end_retrieval = time.time()
+    
+    retrieval_time = end_retrieval - start_retrieval
+    retrieval_time_list.append(retrieval_time)  # Store retrieval time
+    
+    # Time the chain run process
+    start_chain = time.time()
+    result = chain.run(input_documents=doc, question=question)
+    end_chain = time.time()
+    
+    chain_time = end_chain - start_chain
+    chain_time_list.append(chain_time)  # Store chain run time
+    
+    results.append(result)
+
+# Create a pandas DataFrame to store the results and times taken
+df = pd.DataFrame({
+    "Question": questions,
+    "Answer": results,
+    "Retrieval_Time": retrieval_time_list,
+    "Chain_Time": chain_time_list
+})
+df.to_csv('Results_Advanced.csv', index=False)

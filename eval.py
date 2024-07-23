@@ -24,7 +24,9 @@ from ragas.metrics import (
     context_precision,
     context_relevancy,
     answer_correctness,
-    answer_similarity
+    answer_similarity,
+    context_entity_recall,
+    summarization_score
 )
 # from ragas.metrics.critique import harmfulness
 # from ragas.metrics.critique import maliciousness
@@ -46,7 +48,9 @@ def evaluate_ragas_dataset(ragas_dataset):
         context_recall, 
         context_relevancy,
         answer_correctness,
-        answer_similarity
+        answer_similarity,
+        context_entity_recall,
+        summarization_score
     ],
   )
   return result
