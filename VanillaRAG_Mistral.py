@@ -1,3 +1,6 @@
+import torch
+torch.cuda.empty_cache()
+
 # Import dependancies
 import torch
 import transformers
@@ -134,7 +137,7 @@ vectorstore = Chroma.from_documents(
     recreated_splits,
     embeddings,
     collection_name="CS_OpenDay",
-    persist_directory="/home/akash/HSv2/exp"
+    persist_directory="/home/akash/HSv2/HSv2/vecdb"
 )
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
