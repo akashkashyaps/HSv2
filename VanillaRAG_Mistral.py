@@ -1,6 +1,3 @@
-import torch
-torch.cuda.empty_cache()
-
 # Import dependancies
 import torch
 import transformers
