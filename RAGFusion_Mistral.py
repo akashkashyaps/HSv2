@@ -174,7 +174,7 @@ from tqdm import tqdm
 import pandas as pd
 
 # Create test set
-testVanilla = pd.read_csv('CS_OpenDay_General.csv')
+testVanilla = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
 questions = testVanilla['question'].tolist()
 
 # Create empty lists to store the results and the time taken
