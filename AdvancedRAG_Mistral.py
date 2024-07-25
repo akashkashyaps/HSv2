@@ -104,7 +104,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 #     persist_directory="/home/akash/HSv2"
 # )
 
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/vecdb', embedding_function=embeddings, collection_name="CS_OpenDay")
+vectorstore = Chroma(persist_directory='/home/akash/HSv2/vecdb', embedding_function=embeddings, collection_name="CS_OpenDay")
 llm = HuggingFacePipeline(pipeline=generate_text)
 
 multi_query_retriever = MultiQueryRetriever.from_llm(
