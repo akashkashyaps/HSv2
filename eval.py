@@ -22,7 +22,7 @@ from ragas.metrics import (
     # faithfulness,
     context_recall,
     context_precision,
-    context_relevancy,
+    # context_relevancy,
     # answer_correctness,
     # answer_similarity,
     context_entity_recall
@@ -46,7 +46,7 @@ def evaluate_ragas_dataset(ragas_dataset):
         # faithfulness,
         # answer_relevancy,
         context_recall, 
-        context_relevancy,
+        # context_relevancy,
         # answer_correctness,
         # answer_similarity,
         context_entity_recall

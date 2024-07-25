@@ -12,3 +12,4 @@ langchain_experimental
 python-docx
 rank_bm25 > /dev/null
 detoxify
+nest_asyncio
