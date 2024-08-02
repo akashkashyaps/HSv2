@@ -73,7 +73,7 @@ def evaluate_ragas_dataset(ragas_dataset):
 
 
 
-evaluation_set = pd.read_csv("evaluation_set_Fusion.csv")
+evaluation_set = pd.read_csv("evaluation_set_Advanced.csv")
 # evaluation_set = evaluation_set.head(5)
 # Convert the context column to a list of strings
 evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
