@@ -86,5 +86,5 @@ dataset = Dataset.from_pandas(evaluation_set)
 
 quantitative_result_qwen = evaluate_ragas_dataset(dataset)
 # qualitative_result_qwen = qualitative_analysis(dataset)
-quantitative_result_qwen.to_pandas().to_csv("Base_Fusion-Evaluator_internlm2-quantitative.csv", index=False)
+quantitative_result_qwen.to_pandas().to_csv("Base_Advanced-Evaluator_internlm2-quantitative.csv", index=False)
 # qualitative_result_qwen.to_pandas().to_csv("Base_Mistral7B-Evaluator_Qwen-qualitative.csv", index=False)
