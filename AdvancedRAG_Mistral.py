@@ -16,6 +16,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from langchain_core.exceptions import OutputParserException
 from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 # Define the model
@@ -78,32 +79,67 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-import docx
-docx_file_path = "CS_OpenDay_General.docx"
+from langchain_community.document_loaders import Docx2txtLoader
 
-def extract_text_from_docx(docx_file):
-    doc = docx.Document(docx_file)
-    full_text = []
-    for para in doc.paragraphs:
-        full_text.append(para.text)
-    return '\n'.join(full_text)
+loader = Docx2txtLoader("CS_OpenDay_General.docx")
 
-# Extract text from docx
-data = extract_text_from_docx(docx_file_path)
-data
+loaded_documents = loader.load()
 
-text_splitter = SemanticChunker(
-    embeddings, breakpoint_threshold_type="percentile"
-)
-docs = text_splitter.create_documents(data)
+
+def extract_metadata(text):
+    sections = text.split('Source:')[1:]  # Split by 'Source:' and remove the first empty part
+    all_metadata = []
+    
+    for section in sections:
+        metadata = {}
+        lines = section.split('\n')
+        metadata['source'] = lines[0].strip()
+        
+        for line in lines[1:]:
+            if line.startswith('Metadata:'):
+                metadata['about'] = line.replace('Metadata:', '').strip()
+                break
+        
+        all_metadata.append(metadata)
+    
+    return all_metadata
+
+# After loading documents
+all_metadata = []
+for document in loaded_documents:
+    # Extract metadata from the document content
+    metadata_list = extract_metadata(document.page_content)
+    all_metadata.extend(metadata_list)
+
+# text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
+
+# Split the loaded documents into chunks
+recreated_splits = text_splitter.split_documents(loaded_documents)
+
+# Add chunk IDs and assign correct metadata to split documents
+current_metadata_index = 0
+for i, split in enumerate(recreated_splits):
+    split.metadata['chunk_id'] = i
+    
+    # Check if we need to update the current metadata
+    if 'Source:' in split.page_content:
+        if current_metadata_index < len(all_metadata):
+            split.metadata.update(all_metadata[current_metadata_index])
+            current_metadata_index += 1
+    elif current_metadata_index > 0:
+        # For chunks without 'Source:', use the last seen metadata
+        split.metadata.update(all_metadata[current_metadata_index - 1])
+
+recreated_splits
+
 
 vectorstore = Chroma.from_documents(
-    docs,
+    recreated_splits,
     embeddings,
     collection_name="CS_OpenDay",
     persist_directory="/home/akash/HSv2/vecdb"
 )
-
 # vectorstore = Chroma(persist_directory='/home/akash/HSv2/vecdb', embedding_function=embeddings, collection_name="CS_OpenDay")
 llm = HuggingFacePipeline(pipeline=generate_text)
 
