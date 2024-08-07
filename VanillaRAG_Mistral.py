@@ -168,15 +168,30 @@ output_parser = RegexParser(
     output_keys=["answer"]
 )
 
-chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+from langchain.chains import RetrievalQA
+chain = RetrievalQA.from_chain_type(
+    llm=HuggingFacePipeline(pipeline=generate_text),
+    chain_type="stuff",
+    retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4}),
+    return_source_documents=True,
+    chain_type_kwargs={"prompt": prompt}
+)
+rag_chain = chain | output_parser
 
+# Use the chain
 query = "Are there placements?"
-doc = retriever_vanilla.get_relevant_documents(query)
+result = rag_chain.invoke({"query": query})
 
-rag_chain = (chain | output_parser)
+# query = "Are there placements?"
+# doc = retriever_vanilla.get_relevant_documents(query)
 
-results = rag_chain.invoke(input_documents=doc, question=query)
-print(results)
+# rag_chain = (chain | output_parser)
+
+# results = rag_chain.invoke({input_documents:doc}, question=query)
+print(result)
+
+from langchain.chains import RetrievalQA
 
 # import time
 # from datasets import Dataset
