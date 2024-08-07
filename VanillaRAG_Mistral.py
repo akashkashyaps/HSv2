@@ -166,13 +166,20 @@ output_parser = RegexParser(
     output_keys=["answer"]
 )
 
-chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt, output_parser=output_parser)
+# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt, output_parser=output_parser)
 
 query = "Are there placements?"
 doc = retriever_vanilla.get_relevant_documents(query)
-results = chain.invoke(input_documents = doc, question = query)
-print(results)
 
+rag_chain = (
+    {"context": retriever_vanilla | doc, "question": query}
+    | prompt
+    | llm
+    | output_parser
+)
+
+results = rag_chain.invoke()
+print(results)
 # import time
 # from datasets import Dataset
 # from tqdm import tqdm
