@@ -168,39 +168,40 @@ output_parser = RegexParser(
     output_keys=["answer"]
 )
 import re
-# Define a function to extract context and answer using regular expressions
-class extract_answer(RunnablePassthrough):
+
+class ExtractAnswer:
     def run(self, text):
-        match = re.search(r'CONTEXT:(.*?)QUESTION:(.*?)INST(.*)$', text, re.DOTALL)
+        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
+        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
         if match:
-            answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
             return answer
         else:
             return None
-        
-# def extract_answer(text):
-#     match = re.search(r'CONTEXT:(.*?)QUESTION:(.*?)INST(.*)$', text, re.DOTALL)
-#     if match:
-#         context = match.group(1).strip()
-#         answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-#         return answer
-#     else:
-#         return None
-    
-# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+
 from langchain.chains import RetrievalQA
+
+# Define the retrieval chain
 chain = RetrievalQA.from_chain_type(
     llm=HuggingFacePipeline(pipeline=generate_text),
     chain_type="stuff",
-    retriever = retriever_vanilla,
+    retriever=retriever_vanilla,
     return_source_documents=True,
     chain_type_kwargs={"prompt": prompt}
 )
-rag_chain = chain | extract_answer()
+
+# Define an instance of ExtractAnswer
+extract_answer_instance = ExtractAnswer()
+
+# Integrate the extraction with the retrieval chain
+def extract_answer_chain(query):
+    result = chain.invoke({"query": query})
+    return extract_answer_instance.run(result['result'])
 
 # Use the chain
 query = "Are there placements?"
-result = rag_chain.invoke({"query": query})
+answer = extract_answer_chain(query)
+print(answer)
 
 # query = "Are there placements?"
 # doc = retriever_vanilla.get_relevant_documents(query)
@@ -208,7 +209,7 @@ result = rag_chain.invoke({"query": query})
 # rag_chain = (chain | output_parser)
 
 # results = rag_chain.invoke({input_documents:doc}, question=query)
-print(result)
+
 
 from langchain.chains import RetrievalQA
 
