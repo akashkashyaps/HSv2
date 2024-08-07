@@ -168,17 +168,12 @@ output_parser = RegexParser(
     output_keys=["answer"]
 )
 
-# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt, output_parser=output_parser)
+chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 
 query = "Are there placements?"
 doc = retriever_vanilla.get_relevant_documents(query)
 
-rag_chain = (
-    {"context": doc , "question": RunnablePassthrough()}
-    | prompt
-    | llm
-    | output_parser
-)
+rag_chain = {chain | output_parser | RunnablePassthrough()}
 
 results = rag_chain.invoke(query)
 print(results)
