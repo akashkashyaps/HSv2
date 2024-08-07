@@ -155,51 +155,63 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
-chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 # query = "Are there placements?"
 # doc = retriever_vanilla.get_relevant_documents(query)
 # results = chain.run(input_documents = doc, question = query)
+from langchain.output_parsers import RegexParser
+# Define the regex parser to extract the answer
+output_parser = RegexParser(
+    regex=r"Helpful Answer: \[ANSWER\](.*?)\[\/INST\]",
+    output_keys=["answer"]
+)
 
+chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt, output_parser=output_parser)
 
-import time
-from datasets import Dataset
-from tqdm import tqdm
-import pandas as pd
+query = "Are there placements?"
+doc = retriever_vanilla.get_relevant_documents(query)
+results = chain.invoke(input_documents = doc, question = query)
+print(results)
 
-# Create test set
-testVanilla = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
-questions = testVanilla['question'].tolist()
+# import time
+# from datasets import Dataset
+# from tqdm import tqdm
+# import pandas as pd
 
-# Create empty lists to store the results and the time taken
-results = []
-retrieval_time_list = []
-chain_time_list = []
+# # Create test set
+# testVanilla = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
+# questions = testVanilla['question'].tolist()
 
-# Loop through each question
-for question in tqdm(questions):
-    # Time the document retrieval process
-    start_retrieval = time.time()
-    doc = retriever_vanilla.get_relevant_documents(question)
-    end_retrieval = time.time()
+# # Create empty lists to store the results and the time taken
+# results = []
+# retrieval_time_list = []
+# chain_time_list = []
+
+# # Loop through each question
+# for question in tqdm(questions):
+#     # Time the document retrieval process
+#     start_retrieval = time.time()
+#     doc = retriever_vanilla.get_relevant_documents(question)
+#     end_retrieval = time.time()
     
-    retrieval_time = end_retrieval - start_retrieval
-    retrieval_time_list.append(retrieval_time)  # Store retrieval time
+#     retrieval_time = end_retrieval - start_retrieval
+#     retrieval_time_list.append(retrieval_time)  # Store retrieval time
     
-    # Time the chain run process
-    start_chain = time.time()
-    result = chain.run(input_documents=doc, question=question)
-    end_chain = time.time()
+#     # Time the chain run process
+#     start_chain = time.time()
+#     result = chain.run(input_documents=doc, question=question)
+#     end_chain = time.time()
     
-    chain_time = end_chain - start_chain
-    chain_time_list.append(chain_time)  # Store chain run time
+#     chain_time = end_chain - start_chain
+#     chain_time_list.append(chain_time)  # Store chain run time
     
-    results.append(result)
+#     results.append(result)
 
-# Create a pandas DataFrame to store the results and times taken
-df = pd.DataFrame({
-    "Question": questions,
-    "Answer": results,
-    "Retrieval_Time": retrieval_time_list,
-    "Chain_Time": chain_time_list
-})
-df.to_csv('Results_Vanilla.csv', index=False)
+# # Create a pandas DataFrame to store the results and times taken
+# df = pd.DataFrame({
+#     "Question": questions,
+#     "Answer": results,
+#     "Retrieval_Time": retrieval_time_list,
+#     "Chain_Time": chain_time_list
+# })
+# df.to_csv('Results_Vanilla.csv', index=False)
