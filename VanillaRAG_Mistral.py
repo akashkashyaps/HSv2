@@ -177,7 +177,7 @@ chain = RetrievalQA.from_chain_type(
     return_source_documents=True,
     chain_type_kwargs={"prompt": prompt}
 )
-rag_chain = chain | output_parser
+rag_chain = chain | output_parser.parse
 
 # Use the chain
 query = "Are there placements?"
