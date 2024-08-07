@@ -14,6 +14,8 @@ from datasets import Dataset
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
@@ -172,7 +174,7 @@ query = "Are there placements?"
 doc = retriever_vanilla.get_relevant_documents(query)
 
 rag_chain = (
-    {"context": retriever_vanilla | doc, "question": query}
+    {"context": retriever_vanilla | doc, "question": RunnablePassthrough()}
     | prompt
     | llm
     | output_parser
@@ -180,6 +182,7 @@ rag_chain = (
 
 results = rag_chain.invoke(query)
 print(results)
+
 # import time
 # from datasets import Dataset
 # from tqdm import tqdm
