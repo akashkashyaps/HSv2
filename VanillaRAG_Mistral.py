@@ -167,7 +167,26 @@ output_parser = RegexParser(
     regex=r"Helpful Answer: \[ANSWER\](.*?)\[\/INST\]",
     output_keys=["answer"]
 )
-
+import re
+# Define a function to extract context and answer using regular expressions
+class extract_answer(RunnablePassthrough):
+    def run(self, text):
+        match = re.search(r'CONTEXT:(.*?)QUESTION:(.*?)INST(.*)$', text, re.DOTALL)
+        if match:
+            answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+            return answer
+        else:
+            return None
+        
+# def extract_answer(text):
+#     match = re.search(r'CONTEXT:(.*?)QUESTION:(.*?)INST(.*)$', text, re.DOTALL)
+#     if match:
+#         context = match.group(1).strip()
+#         answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+#         return answer
+#     else:
+#         return None
+    
 # chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 from langchain.chains import RetrievalQA
 chain = RetrievalQA.from_chain_type(
@@ -177,7 +196,7 @@ chain = RetrievalQA.from_chain_type(
     return_source_documents=True,
     chain_type_kwargs={"prompt": prompt}
 )
-rag_chain = chain | StrOutputParser() | output_parser.parse
+rag_chain = chain | extract_answer()
 
 # Use the chain
 query = "Are there placements?"
