@@ -178,7 +178,7 @@ rag_chain = (
     | output_parser
 )
 
-results = rag_chain.invoke()
+results = rag_chain.invoke(query)
 print(results)
 # import time
 # from datasets import Dataset
