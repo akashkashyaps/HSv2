@@ -175,7 +175,7 @@ doc = retriever_vanilla.get_relevant_documents(query)
 
 rag_chain = (chain | output_parser)
 
-results = rag_chain.invoke(query)
+results = rag_chain.invoke(input_documents=doc, question=query)
 print(results)
 
 # import time
