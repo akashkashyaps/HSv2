@@ -173,7 +173,7 @@ chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 query = "Are there placements?"
 doc = retriever_vanilla.get_relevant_documents(query)
 
-rag_chain = {chain | output_parser | RunnablePassthrough()}
+rag_chain = (chain | output_parser)
 
 results = rag_chain.invoke(query)
 print(results)
