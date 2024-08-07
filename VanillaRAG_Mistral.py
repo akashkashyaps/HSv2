@@ -174,7 +174,7 @@ query = "Are there placements?"
 doc = retriever_vanilla.get_relevant_documents(query)
 
 rag_chain = (
-    {"context": retriever_vanilla | doc, "question": RunnablePassthrough()}
+    {"context": doc , "question": RunnablePassthrough()}
     | prompt
     | llm
     | output_parser
