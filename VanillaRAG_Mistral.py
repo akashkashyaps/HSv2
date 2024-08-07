@@ -173,7 +173,7 @@ from langchain.chains import RetrievalQA
 chain = RetrievalQA.from_chain_type(
     llm=HuggingFacePipeline(pipeline=generate_text),
     chain_type="stuff",
-    retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4}),
+    retriever = retriever_vanilla,
     return_source_documents=True,
     chain_type_kwargs={"prompt": prompt}
 )
