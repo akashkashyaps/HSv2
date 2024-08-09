@@ -216,7 +216,7 @@ def scan_input(prompt):
     # Scan for prompt injection
     sanitized_prompt, is_valid, _ = prompt_injection_scanner.scan(prompt)
     if not is_valid:
-        return "Sorry, I'm just an AI hologram, can I help you with something else?"
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
 
     # Scan for banned topics
     sanitized_prompt, is_valid, _ = ban_topics_scanner.scan(sanitized_prompt)
@@ -257,7 +257,7 @@ def extract_answer_chain(query):
     sanitized_query = scan_input(query)
     
     # If the query is invalid after scanning, return an appropriate response
-    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else?":
+    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
     # Process the sanitized query
