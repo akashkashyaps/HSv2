@@ -198,7 +198,7 @@ from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
 prompt_injection_scanner = PromptInjection(threshold=0.5, match_type=InputMatchType.FULL)
 
 # Initialize the Secrets scanner
-secrets_scanner = Secrets(redact_mode=Secrets.REDACT_PARTIAL)
+# secrets_scanner = Secrets(redact_mode=Secrets.REDACT_PARTIAL)
 
 # Initialize the Toxicity scanner for inputs
 input_toxicity_scanner = InputToxicity(threshold=0.5, match_type=InputMatchType.SENTENCE)
@@ -218,10 +218,10 @@ def scan_input(prompt):
     if not is_valid:
         return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
-    # Scan for secrets
-    sanitized_prompt, is_valid, _ = secrets_scanner.scan(sanitized_prompt)
-    if not is_valid:
-        return "Sorry, I'm just an AI hologram, can I help you with something else?"
+    # # Scan for secrets
+    # sanitized_prompt, is_valid, _ = secrets_scanner.scan(sanitized_prompt)
+    # if not is_valid:
+    #     return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
     # Scan for toxicity
     sanitized_prompt, is_valid, _ = input_toxicity_scanner.scan(sanitized_prompt)
