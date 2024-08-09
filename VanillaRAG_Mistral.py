@@ -219,7 +219,7 @@ def scan_input(prompt):
         return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
     # Scan for banned topics
-    sanitized_output, is_valid, _ = ban_topics_scanner.scan(prompt, sanitized_prompt)
+    sanitized_prompt, is_valid, _ = ban_topics_scanner.scan(prompt, sanitized_prompt)
     if not is_valid:
         return "Sorry, I'm just an AI hologram, can I help you with something else."
 
