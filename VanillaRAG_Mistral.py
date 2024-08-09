@@ -210,7 +210,7 @@ output_toxicity_scanner = OutputToxicity(threshold=0.5, match_type=OutputMatchTy
 no_refusal_scanner = NoRefusal(threshold=0.5, match_type=OutputMatchType.FULL)
 
 # Initialize the Ban Topics scanner
-ban_topics_scanner = BanTopics(topics=["violence", "US Politics", "religion"], threshold=0.5)
+ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.5)
 
 def scan_input(prompt):
     # Scan for prompt injection
