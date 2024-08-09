@@ -157,16 +157,12 @@ prompt=PromptTemplate(template=prompt_template,input_variables=["context","quest
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
-# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
-# query = "Are there placements?"
-# doc = retriever_vanilla.get_relevant_documents(query)
-# results = chain.run(input_documents = doc, question = query)
 from langchain.output_parsers import RegexParser
 # Define the regex parser to extract the answer
-output_parser = RegexParser(
-    regex=r"Helpful Answer: \[ANSWER\](.*?)\[\/INST\]",
-    output_keys=["answer"]
-)
+# output_parser = RegexParser(
+#     regex=r"Helpful Answer: \[ANSWER\](.*?)\[\/INST\]",
+#     output_keys=["answer"]
+# )
 import re
 
 class ExtractAnswer:
@@ -193,84 +189,122 @@ chain = RetrievalQA.from_chain_type(
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
-# Integrate the extraction with the retrieval chain
-def extract_answer_chain(query):
-    result = chain.invoke({"query": query})
-    return extract_answer_instance.run(result['result'])
+from llm_guard.input_scanners import PromptInjection, Secrets, Toxicity as InputToxicity
+from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
+from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics
+from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
 
-# Use the chain
-query = "Are there placements?"
-answer = extract_answer_chain(query)
-print(answer)
-import re
+# Initialize the Prompt Injection scanner
+prompt_injection_scanner = PromptInjection(threshold=0.5, match_type=InputMatchType.FULL)
 
-class ExtractAnswer:
-    def run(self, text):
-        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
-        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-            return answer
-        else:
-            return None
+# Initialize the Secrets scanner
+secrets_scanner = Secrets(redact_mode=Secrets.REDACT_PARTIAL)
 
-from langchain.chains import RetrievalQA
+# Initialize the Toxicity scanner for inputs
+input_toxicity_scanner = InputToxicity(threshold=0.5, match_type=InputMatchType.SENTENCE)
 
-# Define the retrieval chain
-chain = RetrievalQA.from_chain_type(
-    llm=HuggingFacePipeline(pipeline=generate_text),
-    chain_type="stuff",
-    retriever=retriever_vanilla,
-    return_source_documents=True,
-    chain_type_kwargs={"prompt": prompt}
-)
-from llm_guard import InputGuard, ToxicityScanner, BanSubstringScanner
+# Initialize the Toxicity scanner for outputs
+output_toxicity_scanner = OutputToxicity(threshold=0.5, match_type=OutputMatchType.SENTENCE)
 
-# Define input scanners
-input_scanners = [
-    ToxicityScanner(threshold=0.5),  # Detect toxic content
-    BanSubstringScanner(banned_substrings=["out of scope", "classified"])  # Ban specific substrings
-]
+# Initialize the NoRefusal scanner
+no_refusal_scanner = NoRefusal(threshold=0.5, match_type=OutputMatchType.FULL)
 
-from llm_guard import OutputGuard, ToxicityScanner, BanTopicScanner
+# Initialize the Ban Topics scanner
+ban_topics_scanner = BanTopics(topics=["violence"], threshold=0.5)
 
-# Define output scanners
-output_scanners = [
-    ToxicityScanner(threshold=0.5),  # Detect toxic content
-    BanTopicScanner(banned_topics=["politics", "religion"])  # Ban specific topics
-]
+def scan_input(prompt):
+    # Scan for prompt injection
+    sanitized_prompt, is_valid, _ = prompt_injection_scanner.scan(prompt)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
-# Initialize the Output Guard
-output_guard = OutputGuard(scanners=output_scanners)
+    # Scan for secrets
+    sanitized_prompt, is_valid, _ = secrets_scanner.scan(sanitized_prompt)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
-# Initialize the Input Guard
-input_guard = InputGuard(scanners=input_scanners)
+    # Scan for toxicity
+    sanitized_prompt, is_valid, _ = input_toxicity_scanner.scan(sanitized_prompt)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
 
-# Define an instance of ExtractAnswer
-extract_answer_instance = ExtractAnswer()
+    return sanitized_prompt
+
+def scan_output(prompt, model_output):
+    # Scan for output toxicity
+    sanitized_output, is_valid, _ = output_toxicity_scanner.scan(prompt, model_output)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
+
+    # Scan for no refusal
+    sanitized_output, is_valid, _ = no_refusal_scanner.scan(prompt, sanitized_output)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
+
+    # Scan for banned topics
+    sanitized_output, is_valid, _ = ban_topics_scanner.scan(prompt, sanitized_output)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
+
+    return sanitized_output
 
 # Integrate the extraction with the retrieval chain
 # def extract_answer_chain(query):
 #     result = chain.invoke({"query": query})
 #     return extract_answer_instance.run(result['result'])
 def extract_answer_chain(query):
-    # Run input guard
-    guarded_input = input_guard.scan(query)
-    if guarded_input:
-        return "Sorry, I'm just an AI hologram, can I help you with something else?"
-
-    # Proceed with the chain if input is valid
-    result = chain.invoke({"query": query})
+    # Scan the input before processing
+    sanitized_query = scan_input(query)
     
-    # Extract the generated answer
-    generated_answer = extract_answer_instance.run(result['result'])
+    # If the query is invalid after scanning, return an appropriate response
+    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else?":
+        return sanitized_query
+    
+    # Process the sanitized query
+    result = chain.invoke({"query": sanitized_query})
+    
+    # Extract the answer from the result
+    answer = extract_answer_instance.run(result['result'])
+    
+    # Scan the output before returning
+    sanitized_answer = scan_output(sanitized_query, answer)
+    
+    return sanitized_answer
 
-    # Run output guard
-    guarded_output = output_guard.scan(generated_answer)
-    if guarded_output:
-        return "Sorry, I'm just an AI hologram, can I help you with something else?"
+# Use the chain
+# query = "Are there placements?"
+# answer = extract_answer_chain(query)
+# print(answer)
+# import re
 
-    return generated_answer
+# class ExtractAnswer:
+#     def run(self, text):
+#         # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
+#         match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
+#         if match:
+#             answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+#             return answer
+#         else:
+#             return None
+
+# from langchain.chains import RetrievalQA
+
+# # Define the retrieval chain
+# chain = RetrievalQA.from_chain_type(
+#     llm=HuggingFacePipeline(pipeline=generate_text),
+#     chain_type="stuff",
+#     retriever=retriever_vanilla,
+#     return_source_documents=True,
+#     chain_type_kwargs={"prompt": prompt}
+# )
+
+# # Define an instance of ExtractAnswer
+# extract_answer_instance = ExtractAnswer()
+
+# # Integrate the extraction with the retrieval chain
+# def extract_answer_chain(query):
+#     result = chain.invoke({"query": query})
+#     return extract_answer_instance.run(result['result'])
 
 # # Use the chain
 # query = "Are there placements?"
@@ -339,3 +373,7 @@ for query in test_queries:
 # })
 # df.to_csv('Results_Vanilla.csv', index=False)
 
+# chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
+# query = "Are there placements?"
+# doc = retriever_vanilla.get_relevant_documents(query)
+# results = chain.run(input_documents = doc, question = query)
