@@ -202,6 +202,89 @@ def extract_answer_chain(query):
 query = "Are there placements?"
 answer = extract_answer_chain(query)
 print(answer)
+import re
+
+class ExtractAnswer:
+    def run(self, text):
+        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
+        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
+        if match:
+            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+            return answer
+        else:
+            return None
+
+from langchain.chains import RetrievalQA
+
+# Define the retrieval chain
+chain = RetrievalQA.from_chain_type(
+    llm=HuggingFacePipeline(pipeline=generate_text),
+    chain_type="stuff",
+    retriever=retriever_vanilla,
+    return_source_documents=True,
+    chain_type_kwargs={"prompt": prompt}
+)
+from llm_guard import InputGuard, ToxicityScanner, BanSubstringScanner
+
+# Define input scanners
+input_scanners = [
+    ToxicityScanner(threshold=0.5),  # Detect toxic content
+    BanSubstringScanner(banned_substrings=["out of scope", "classified"])  # Ban specific substrings
+]
+
+from llm_guard import OutputGuard, ToxicityScanner, BanTopicScanner
+
+# Define output scanners
+output_scanners = [
+    ToxicityScanner(threshold=0.5),  # Detect toxic content
+    BanTopicScanner(banned_topics=["politics", "religion"])  # Ban specific topics
+]
+
+# Initialize the Output Guard
+output_guard = OutputGuard(scanners=output_scanners)
+
+# Initialize the Input Guard
+input_guard = InputGuard(scanners=input_scanners)
+
+# Define an instance of ExtractAnswer
+extract_answer_instance = ExtractAnswer()
+
+# Integrate the extraction with the retrieval chain
+# def extract_answer_chain(query):
+#     result = chain.invoke({"query": query})
+#     return extract_answer_instance.run(result['result'])
+def extract_answer_chain(query):
+    # Run input guard
+    guarded_input = input_guard.scan(query)
+    if guarded_input:
+        return "Sorry, I'm just an AI hologram, can I help you with something else?"
+
+    # Proceed with the chain if input is valid
+    result = chain.invoke({"query": query})
+    
+    # Extract the generated answer
+    generated_answer = extract_answer_instance.run(result['result'])
+
+    # Run output guard
+    guarded_output = output_guard.scan(generated_answer)
+    if guarded_output:
+        return "Sorry, I'm just an AI hologram, can I help you with something else?"
+
+    return generated_answer
+
+# # Use the chain
+# query = "Are there placements?"
+# answer = extract_answer_chain(query)
+# print(answer)
+# Example test
+test_queries = [
+    "Are there placements?",  # Expected to pass through
+    "Is this out of scope?",  # Expected to trigger the input guard
+    "Tell me something political.",  # Expected to trigger the output guard
+]
+
+for query in test_queries:
+    print(f"Query: {query}\nResponse: {extract_answer_chain(query)}\n")
 
 # query = "Are there placements?"
 # doc = retriever_vanilla.get_relevant_documents(query)
@@ -211,7 +294,7 @@ print(answer)
 # results = rag_chain.invoke({input_documents:doc}, question=query)
 
 
-from langchain.chains import RetrievalQA
+# from langchain.chains import RetrievalQA
 
 # import time
 # from datasets import Dataset
@@ -255,3 +338,4 @@ from langchain.chains import RetrievalQA
 #     "Chain_Time": chain_time_list
 # })
 # df.to_csv('Results_Vanilla.csv', index=False)
+
