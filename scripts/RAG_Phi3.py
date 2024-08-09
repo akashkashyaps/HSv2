@@ -70,17 +70,17 @@ generate_text = transformers.pipeline(
 # print(generated_ids)
 
 
-# from langchain.document_loaders import SeleniumURLLoader
+from langchain.document_loaders import SeleniumURLLoader
 
-# urls = ["https://www.ntu.ac.uk/course/computer-science", 
-#         "https://www.ntu.ac.uk/study-and-courses/academic-schools/science-and-technology/Computer-Science"]
+urls = ["https://www.ntu.ac.uk/course/computer-science", 
+        "https://www.ntu.ac.uk/study-and-courses/academic-schools/science-and-technology/Computer-Science"]
        
-# loader = SeleniumURLLoader(urls)
-# documents = loader.load()
+loader = SeleniumURLLoader(urls)
+documents = loader.load()
 
-# # Split the documents into chunks
-# text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
-# all_splits = text_splitter.split_documents(documents)
+# Split the documents into chunks
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+all_splits = text_splitter.split_documents(documents)
 
 # Define the model name and kwargs for embeddings
 model_name = "sentence-transformers/all-mpnet-base-v2"
@@ -89,14 +89,14 @@ model_kwargs = {"device": "cuda"}
 # Create the HuggingFaceEmbeddings
 embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwargs)
 
-# # Create the vectorstore
-# vectorstore = Chroma.from_documents(
-#     all_splits,
-#     embeddings,
-#     persist_directory="/home/akash/HSv2"
-# )
+# Create the vectorstore
+vectorstore = Chroma.from_documents(
+    all_splits,
+    embeddings,
+    persist_directory="/home/akash/HSv2"
+)
 
-vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings)
+# vectorstore = Chroma(persist_directory='/home/akash/HSv2/HSv2/', embedding_function=embeddings)
 
 retriever = vectorstore.as_retriever(search_kwargs={'k': 1}, max_tokens=2500)
 
@@ -125,7 +125,7 @@ end = time.time()
 
 time_taken = end - start
 time_taken
-import re
+# import re
 
 # def process_chain_output(chain_output):
 #     # Find the start index of the context
@@ -189,36 +189,36 @@ import re
 # df.to_csv('results4.csv', index=False)
 
 
-import time
-from datasets import Dataset
-from tqdm import tqdm
-import pandas as pd
+# import time
+# from datasets import Dataset
+# from tqdm import tqdm
+# import pandas as pd
 
-# Load test set
-test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
-questions = test1000['question'].tolist()
+# # Load test set
+# test1000 = pd.read_csv('testset7-cleaned-JB-FFT.csv')
+# questions = test1000['question'].tolist()
 
-# Create empty lists to store the results and the time taken
-results = []
-time_taken_list = []
+# # Create empty lists to store the results and the time taken
+# results = []
+# time_taken_list = []
 
-# Loop through each question
-for question in tqdm(questions):
-    start = time.time()  # Start timing
+# # Loop through each question
+# for question in tqdm(questions):
+#     start = time.time()  # Start timing
     
-    doc = retriever.get_relevant_documents(question)
-    result = chain.run(input_documents=doc, question=question)
+#     doc = retriever.get_relevant_documents(question)
+#     result = chain.run(input_documents=doc, question=question)
     
-    end = time.time()  # End timing
+#     end = time.time()  # End timing
     
-    time_taken = end - start
-    time_taken_list.append(time_taken)  # Store time taken
+#     time_taken = end - start
+#     time_taken_list.append(time_taken)  # Store time taken
     
-    results.append(result)
+#     results.append(result)
 
-# Create a pandas DataFrame to store the results and time taken
-df = pd.DataFrame({"Question": questions, "Answer": results, "Time_Taken": time_taken_list})
-df.to_csv('Phi_time.csv', index=False)
+# # Create a pandas DataFrame to store the results and time taken
+# df = pd.DataFrame({"Question": questions, "Answer": results, "Time_Taken": time_taken_list})
+# df.to_csv('Phi_time.csv', index=False)
 
 
 # # Function to generate answers using RAG and retrieve context using vector store
