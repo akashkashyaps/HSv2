@@ -189,7 +189,7 @@ chain = RetrievalQA.from_chain_type(
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
-from llm_guard.input_scanners import PromptInjection, Secrets, Toxicity as InputToxicity
+from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
 from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics
 from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
@@ -218,10 +218,10 @@ def scan_input(prompt):
     if not is_valid:
         return "Sorry, I'm just an AI hologram, can I help you with something else?"
 
-    # # Scan for secrets
-    # sanitized_prompt, is_valid, _ = secrets_scanner.scan(sanitized_prompt)
-    # if not is_valid:
-    #     return "Sorry, I'm just an AI hologram, can I help you with something else?"
+    # Scan for banned topics
+    sanitized_output, is_valid, _ = ban_topics_scanner.scan(prompt, sanitized_output)
+    if not is_valid:
+        return "Sorry, I'm just an AI hologram, can I help you with something else."
 
     # Scan for toxicity
     sanitized_prompt, is_valid, _ = input_toxicity_scanner.scan(sanitized_prompt)
