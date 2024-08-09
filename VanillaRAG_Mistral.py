@@ -17,6 +17,18 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
+LANGFUSE_SECRET_KEY="sk-lf-..."
+LANGFUSE_PUBLIC_KEY="pk-lf-..."
+LANGFUSE_HOST="https://cloud.langfuse.com"
+
+from langfuse.callback import CallbackHandler
+from langfuse.callback import CallbackHandler
+langfuse_handler = CallbackHandler(
+    public_key="pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c",
+    secret_key="sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1",
+    host="https://cloud.langfuse.com"
+)
+
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
 hf_auth = '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'
@@ -261,7 +273,7 @@ def extract_answer_chain(query):
         return sanitized_query
     
     # Process the sanitized query
-    result = chain.invoke({"query": sanitized_query})
+    result = chain.invoke({"query": sanitized_query}, config={"callbacks": [langfuse_handler]})
     
     # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
