@@ -282,21 +282,18 @@ def scan_output(prompt, model_output):
 
 def extract_answer_chain(query):
     start_timer()
-    # Scan the input before processing
     sanitized_query = scan_input(query)
     
-    # If the query is invalid after scanning, return an appropriate response
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Process the sanitized query
-    result = chain.invoke({"query": sanitized_query}, config={"callbacks": [langfuse_handler]})
+    result = chain.invoke({"query": sanitized_query}, {"history": conversation_memory.load_memory_variables({})['history']}, config={"callbacks": [langfuse_handler]})
     
-    # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
-    
-    # Scan the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
+    
+    # Save the interaction to memory
+    conversation_memory.save_context({"input": sanitized_query}, {"output": sanitized_answer})
     
     return sanitized_answer
 
