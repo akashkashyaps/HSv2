@@ -184,9 +184,10 @@ class ExtractAnswer:
 
 import threading
 from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationSummaryMemory
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
-conversation_memory = ConversationBufferMemory(memory_key="history", input_key="question")
+conversation_memory = ConversationSummaryMemory(memory_key="history", input_key="question")
 timer_started = False
 clear_memory_timer = None
 
