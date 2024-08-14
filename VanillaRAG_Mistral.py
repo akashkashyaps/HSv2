@@ -287,7 +287,17 @@ def extract_answer_chain(query):
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    result = chain.invoke({"query": sanitized_query}, {"history": conversation_memory.load_memory_variables({})['history']}, config={"callbacks": [langfuse_handler]})
+    # Load the history from memory
+    history = conversation_memory.load_memory_variables({}).get('history', '')
+    
+    # Invoke the chain with query, history, and config
+    result = chain.invoke(
+        {
+            "query": sanitized_query,
+            "history": history
+        },
+        config={"callbacks": [langfuse_handler]}
+    )
     
     answer = extract_answer_instance.run(result['result'])
     sanitized_answer = scan_output(sanitized_query, answer)
