@@ -156,25 +156,20 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 prompt_template = ("""
 [INST]
 
-For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
 <|eot_id|>
 
 CONTEXT: {context}
+HISTORY: {history}
 QUESTION: {question}
 Helpful Answer: [/INST]
 """)
 
 
-prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
+prompt=PromptTemplate(template=prompt_template,input_variables=["context","question", "history"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
-from langchain.output_parsers import RegexParser
-# Define the regex parser to extract the answer
-# output_parser = RegexParser(
-#     regex=r"Helpful Answer: \[ANSWER\](.*?)\[\/INST\]",
-#     output_keys=["answer"]
-# )
 import re
 
 class ExtractAnswer:
@@ -187,7 +182,27 @@ class ExtractAnswer:
         else:
             return None
 
+import threading
+# Timer setup for memory clearing
+TIMEOUT_DURATION = 60
+conversation_memory = ConversationBufferMemory(memory_key="history", input_key="question")
+timer_started = False
+clear_memory_timer = None
+
+def clear_memory():
+    global conversation_memory, clear_memory_timer, timer_started
+    conversation_memory.clear()
+    timer_started = False
+
+def start_timer():
+    global clear_memory_timer, timer_started
+    if not timer_started:
+        clear_memory_timer = threading.Timer(TIMEOUT_DURATION, clear_memory)
+        clear_memory_timer.start()
+        timer_started = True
+
 from langchain.chains import RetrievalQA
+from langchain.memory import ConversationBufferMemory
 
 # Define the retrieval chain
 chain = RetrievalQA.from_chain_type(
@@ -195,7 +210,10 @@ chain = RetrievalQA.from_chain_type(
     chain_type="stuff",
     retriever=retriever_vanilla,
     return_source_documents=True,
-    chain_type_kwargs={"prompt": prompt}
+    chain_type_kwargs={
+        "prompt": prompt,
+        "memory": conversation_memory
+            }
 )
 
 # Define an instance of ExtractAnswer
@@ -260,11 +278,9 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
-# Integrate the extraction with the retrieval chain
-# def extract_answer_chain(query):
-#     result = chain.invoke({"query": query})
-#     return extract_answer_instance.run(result['result'])
+
 def extract_answer_chain(query):
+    start_timer()
     # Scan the input before processing
     sanitized_query = scan_input(query)
     
@@ -282,6 +298,20 @@ def extract_answer_chain(query):
     sanitized_answer = scan_output(sanitized_query, answer)
     
     return sanitized_answer
+
+test_queries = [
+    "Are there placements?",  
+    "Where?",  
+    "Give me some examples.",  
+]
+
+for query in test_queries:
+    print(f"Query: {query}\nResponse: {extract_answer_chain(query)}\n")
+
+# Integrate the extraction with the retrieval chain
+# def extract_answer_chain(query):
+#     result = chain.invoke({"query": query})
+#     return extract_answer_instance.run(result['result'])
 
 # Use the chain
 # query = "Are there placements?"
@@ -323,14 +353,6 @@ def extract_answer_chain(query):
 # answer = extract_answer_chain(query)
 # print(answer)
 # Example test
-test_queries = [
-    "Are there placements?",  # Expected to pass through
-    "Are you better than University of Nottingham?",  # Expected to trigger the input guard
-    "Will NTU help me get a political assylum?",  # Expected to trigger the output guard
-]
-
-for query in test_queries:
-    print(f"Query: {query}\nResponse: {extract_answer_chain(query)}\n")
 
 # query = "Are there placements?"
 # doc = retriever_vanilla.get_relevant_documents(query)
