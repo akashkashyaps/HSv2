@@ -183,6 +183,7 @@ class ExtractAnswer:
             return None
 
 import threading
+from langchain.memory import ConversationBufferMemory
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
 conversation_memory = ConversationBufferMemory(memory_key="history", input_key="question")
@@ -202,7 +203,6 @@ def start_timer():
         timer_started = True
 
 from langchain.chains import RetrievalQA
-from langchain.memory import ConversationBufferMemory
 
 # Define the retrieval chain
 chain = RetrievalQA.from_chain_type(
