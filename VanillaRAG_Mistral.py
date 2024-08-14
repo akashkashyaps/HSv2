@@ -187,7 +187,11 @@ from langchain.memory import ConversationBufferMemory
 from langchain.memory import ConversationSummaryMemory
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
-conversation_memory = ConversationSummaryMemory(llm=llm)
+conversation_memory = ConversationSummaryMemory(
+    llm=llm,
+    input_key="question",
+    output_key="answer"
+)
 timer_started = False
 clear_memory_timer = None
 
@@ -293,7 +297,7 @@ def extract_answer_chain(query):
     # Invoke the chain with query, history, and config
     result = chain.invoke(
         {
-            "query": sanitized_query,
+            "question": sanitized_query,
             "history": history
         },
         config={"callbacks": [langfuse_handler]}
@@ -303,7 +307,7 @@ def extract_answer_chain(query):
     sanitized_answer = scan_output(sanitized_query, answer)
     
     # Save the interaction to memory
-    conversation_memory.save_context({"input": sanitized_query}, {"output": sanitized_answer})
+    conversation_memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
     
     return sanitized_answer
 
