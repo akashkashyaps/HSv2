@@ -156,16 +156,17 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 prompt_template = ("""
 [INST]
 
-For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
 <|eot_id|>
 
 CONTEXT: {context}
+HISTORY: {history}
 QUESTION: {question}
 Helpful Answer: [/INST]
 """)
 
 
-prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
+prompt=PromptTemplate(template=prompt_template,input_variables=["context","question", "history"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
