@@ -214,9 +214,9 @@ import threading
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
 from collections import deque
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferWindowMemory
 
-class CustomConversationBufferMemory(ConversationBufferMemory):
+class CustomConversationBufferWindowMemory(ConversationBufferWindowMemory):
     def __init__(self, max_memory_size=10, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.max_memory_size = max_memory_size
@@ -237,11 +237,11 @@ class CustomConversationBufferMemory(ConversationBufferMemory):
         return list(self.memory)
 
 # Usage
-conversation_memory = CustomConversationBufferMemory(
+conversation_memory = CustomConversationBufferWindowMemory(
     memory_key="history",
     input_key="question",
     output_key="answer",
-    max_memory_size=10
+    k=10
 )
 
 timer_started = False
