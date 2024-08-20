@@ -196,60 +196,18 @@ extract_answer_instance = ExtractAnswer()
 # )
 
 
-# Define the retrieval chain
-from langchain.chains import RetrievalQA
-
-chain = RetrievalQA.from_chain_type(
-    llm=HuggingFacePipeline(pipeline=generate_text),
-    chain_type="stuff",
-    retriever=retriever_vanilla,
-    return_source_documents=True,
-    chain_type_kwargs={
-        "prompt": prompt
-    }
-)
-
 
 import threading
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
 from collections import deque
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationSummaryBufferMemory
 
-class CustomConversationBufferMemory(ConversationBufferMemory):
-    def __init__(self, max_memory_size=10, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # Initialize the base class
-        # Use a private attribute to manage the buffer size
-        self._max_memory_size = max_memory_size
-        self.memory = []  # Initialize an empty list for memory
+conversation_memory=ConversationSummaryBufferMemory(
+        llm=llm,
+        max_token_limit=650
 
-    def save_context(self, inputs, outputs):
-        question = inputs.get(self.input_key, "")
-        answer = outputs.get(self.output_key, "")
-
-        # Add the new question and answer to the buffer
-        self.memory.append((question, answer))
-
-        # If the buffer exceeds the max size, remove the oldest entry
-        if len(self.memory) > self._max_memory_size:
-            self.memory.pop(0)
-
-        # Optionally, you can also update the chat_memory with the recent conversations if needed
-        self.chat_memory.add_user_message(question)
-        self.chat_memory.add_ai_message(answer)
-
-    def get_memory(self):
-        return list(self.memory)  # Return a copy of the memory list
-
-# Usage
-conversation_memory = CustomConversationBufferMemory(
-    memory_key="history",
-    input_key="question",
-    output_key="answer",
-    max_memory_size=10
 )
-
-
 timer_started = False
 clear_memory_timer = None
 
@@ -266,6 +224,18 @@ def start_timer():
         timer_started = True
 
 from langchain.chains import RetrievalQA
+
+chain = RetrievalQA.from_chain_type(
+    llm=HuggingFacePipeline(pipeline=generate_text),
+    chain_type="stuff",
+    retriever=retriever_vanilla,
+    return_source_documents=True,
+    chain_type_kwargs={
+        "prompt": prompt,
+        "memory": conversation_memory
+    }
+)
+
 from langchain.memory import ConversationBufferMemory
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
@@ -333,11 +303,6 @@ def extract_answer_chain(query):
     
     answer = extract_answer_instance.run(result['result'])
     
-     # Save the question and answer to memory
-    conversation_memory.save_context(
-        inputs={"question": sanitized_query},
-        outputs={"answer": answer}
-    )
     
     return answer
 
