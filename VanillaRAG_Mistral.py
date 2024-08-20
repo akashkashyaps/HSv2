@@ -214,35 +214,41 @@ import threading
 # Timer setup for memory clearing
 TIMEOUT_DURATION = 60
 from collections import deque
-from langchain.memory import ConversationBufferWindowMemory
+from langchain.memory import ConversationBufferMemory
 
-class CustomConversationBufferWindowMemory(ConversationBufferWindowMemory):
+class CustomConversationBufferMemory(ConversationBufferMemory):
     def __init__(self, max_memory_size=10, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.max_memory_size = max_memory_size
-        self.memory = deque(maxlen=max_memory_size)
+        super().__init__(*args, **kwargs)  # Initialize the base class
+        # Use a private attribute to manage the buffer size
+        self._max_memory_size = max_memory_size
+        self.memory = []  # Initialize an empty list for memory
 
     def save_context(self, inputs, outputs):
         question = inputs.get(self.input_key, "")
         answer = outputs.get(self.output_key, "")
 
-        # Add the question and answer to the circular buffer
+        # Add the new question and answer to the buffer
         self.memory.append((question, answer))
+
+        # If the buffer exceeds the max size, remove the oldest entry
+        if len(self.memory) > self._max_memory_size:
+            self.memory.pop(0)
 
         # Optionally, you can also update the chat_memory with the recent conversations if needed
         self.chat_memory.add_user_message(question)
         self.chat_memory.add_ai_message(answer)
 
     def get_memory(self):
-        return list(self.memory)
+        return list(self.memory)  # Return a copy of the memory list
 
 # Usage
-conversation_memory = CustomConversationBufferWindowMemory(
+conversation_memory = CustomConversationBufferMemory(
     memory_key="history",
     input_key="question",
     output_key="answer",
-    k=10
+    max_memory_size=10
 )
+
 
 timer_started = False
 clear_memory_timer = None
