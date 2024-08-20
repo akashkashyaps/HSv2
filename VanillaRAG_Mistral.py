@@ -183,7 +183,7 @@ class ExtractAnswer:
 
 # Custom ConversationMemory class
 import time
-from langchain.memory import BaseMemory
+from langchain_core.memory import BaseMemory
 
 class ConversationMemory(BaseMemory):
     def __init__(self, max_conversations=10, max_duration=60):
