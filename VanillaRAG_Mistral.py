@@ -181,37 +181,38 @@ class ExtractAnswer:
         else:
             return None
 
-# Custom ConversationMemory class
-import time
 from langchain_core.memory import BaseMemory
 
-class ConversationMemory(BaseMemory):
-    def __init__(self, max_conversations=10, max_duration=60):
+class CustomConversationMemory(BaseMemory):
+    def __init__(self, max_conversations=10):
         self.max_conversations = max_conversations
-        self.max_duration = max_duration  # in seconds
         self.conversations = []
-        self.start_time = time.time()
 
-    def add_conversation(self, question, answer):
-        current_time = time.time()
-        if (len(self.conversations) >= self.max_conversations) or (current_time - self.start_time > self.max_duration):
-            # Reset the memory if limits are exceeded
-            self.clear_memory()
-
-        self.conversations.append({"question": question, "answer": answer})
-
-    def get_context(self):
-        return "\n".join([f"Q: {conv['question']} A: {conv['answer']}" for conv in self.conversations])
-
-    def clear_memory(self):
+    def clear(self):
         self.conversations = []
-        self.start_time = time.time()
 
-    def __repr__(self):
-        return self.get_context()
+    def load_memory_variables(self, inputs):
+        # Load the history as a formatted string of Q&A pairs
+        history = "\n".join([f"Q: {q}\nA: {a}" for q, a in self.conversations])
+        return {"history": history}
 
-# Initialize conversation memory
-conversation_memory = ConversationMemory()
+    def memory_variables(self):
+        return ["history"]
+
+    def save_context(self, inputs, outputs):
+        # Save sanitized question and answer
+        question = inputs.get("question")
+        answer = outputs.get("answer")
+        if question and answer:
+            self.conversations.append((question, answer))
+            # Maintain only the last 'max_conversations' interactions
+            if len(self.conversations) > self.max_conversations:
+                self.conversations.pop(0)
+
+# Instantiate the memory
+conversation_memory = CustomConversationMemory(max_conversations=10)
+
+
 
 # Define the retrieval chain
 from langchain.chains import RetrievalQA
@@ -295,7 +296,7 @@ def extract_answer_chain(query):
         return sanitized_query
     
     # Get the current context from memory
-    history = conversation_memory.get_context()
+    history = conversation_memory.load_memory_variables({}).get('history', '')
     
     # Invoke the chain with query, history, and config
     result = chain.invoke(
@@ -310,8 +311,8 @@ def extract_answer_chain(query):
     sanitized_answer = scan_output(sanitized_query, answer)
     
     # Save the interaction to memory
-    conversation_memory.add_conversation(sanitized_query, sanitized_answer)
-    
+    conversation_memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
+        
     return sanitized_answer
 
 # Test queries
