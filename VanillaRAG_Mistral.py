@@ -152,6 +152,41 @@ vectorstore = Chroma.from_documents(
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 
+# Custom Memory Manager class
+import time
+from collections import OrderedDict
+
+class CustomMemory:
+    def __init__(self, max_entries=10, max_age=60):
+        self.memory = OrderedDict()
+        self.max_entries = max_entries
+        self.max_age = max_age  # Max age in seconds
+        self.last_cleanup = time.time()
+
+    def _cleanup(self):
+        current_time = time.time()
+        # Remove old entries
+        while self.memory and (current_time - next(iter(self.memory.values()))['timestamp'] > self.max_age):
+            self.memory.popitem(last=False)
+        # Remove excess entries
+        if len(self.memory) > self.max_entries:
+            self.memory.popitem(last=False)
+
+    def add_entry(self, query, answer):
+        self._cleanup()
+        timestamp = time.time()
+        self.memory[query] = {'answer': answer, 'timestamp': timestamp}
+
+    def get_history(self):
+        self._cleanup()
+        history = "\n".join(f"Q: {query}\nA: {data['answer']}" for query, data in self.memory.items())
+        return history
+
+    def reset_memory(self):
+        self.memory.clear()
+
+memory = CustomMemory(max_entries=10, max_age=60)
+
 prompt_template = ("""
 [INST]
 
@@ -181,15 +216,15 @@ class ExtractAnswer:
         else:
             return None
 
-from langchain.memory import ConversationBufferMemory
+# from langchain.memory import ConversationBufferMemory
 
-memory = ConversationBufferMemory(
-    chat_memory="chat_history",
-    ai_prefix="Helpful Answer: [/INST]",
-    input_key="question",
-    output_key="answer",
-    return_messages=True
-)
+# memory = ConversationBufferMemory(
+#     chat_memory="chat_history",
+#     ai_prefix="Helpful Answer: [/INST]",
+#     input_key="question",
+#     output_key="answer",
+#     return_messages=True
+# )
 
 
 # Define the retrieval chain
@@ -202,7 +237,6 @@ chain = RetrievalQA.from_chain_type(
     return_source_documents=True,
     chain_type_kwargs={
         "prompt": prompt,
-        "memory": memory
     }
 )
 
@@ -267,24 +301,25 @@ def scan_output(prompt, model_output):
 
 
 def extract_answer_chain(query):
-    sanitized_query = scan_input(query)
+    # Add the query to memory
+    sanitized_query = query
     
-    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
-        return sanitized_query
-    
-    # Invoke the chain with query, history, and config
-    result = chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})
+    # Invoke the chain with query and history
+    history = memory.get_history()
+    result = chain.invoke({"question": sanitized_query, "context": "", "history": history}, config={"callbacks": [langfuse_handler]})
     
     answer = extract_answer_instance.run(result['result'])
-    sanitized_answer = scan_output(sanitized_query, answer)
-
-    return sanitized_answer
+    
+    # Add the answer to memory
+    memory.add_entry(sanitized_query, answer)
+    
+    return answer
 
 # Test queries
 test_queries = [
-    "Are there placements?",  
-    "Where?",  
-    "Give me some examples.",  
+    "What can I expect in a course?",  
+    "Jobs?",  
+    "Which companies are involved?",  
 ]
 
 for query in test_queries:
