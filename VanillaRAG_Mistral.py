@@ -188,6 +188,7 @@ memory = ConversationBufferMemory(
     ai_prefix="Helpful Answer: [/INST]",
     input_key="question",
     output_key="answer",
+    return_messages=True
 )
 
 
@@ -201,7 +202,6 @@ chain = RetrievalQA.from_chain_type(
     return_source_documents=True,
     chain_type_kwargs={
         "prompt": prompt,
-        # Passing history from our custom memory
         "memory": memory
     }
 )
