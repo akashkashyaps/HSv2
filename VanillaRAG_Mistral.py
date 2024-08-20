@@ -184,11 +184,11 @@ class ExtractAnswer:
 from langchain.memory import ConversationBufferMemory
 
 memory = ConversationBufferMemory(
-    memory_key="chat_history",
+    chat_memory="chat_history",
+    ai_prefix="Helpful Answer: [/INST]",
+    input_key="question",
     output_key="answer",
-    return_messages=True
 )
-
 
 
 # Define the retrieval chain
@@ -272,23 +272,11 @@ def extract_answer_chain(query):
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Get the current context from memory
-    history = memory.load_memory_variables({}).get('history', '')
-    
     # Invoke the chain with query, history, and config
-    result = chain.invoke(
-        {
-            "question": sanitized_query,
-            "history": history
-        },
-        config={"callbacks": [langfuse_handler]}
-    )
+    result = chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})
     
     answer = extract_answer_instance.run(result['result'])
     sanitized_answer = scan_output(sanitized_query, answer)
-    
-    # Save the interaction to memory
-    memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
 
     return sanitized_answer
 
