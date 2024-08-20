@@ -159,7 +159,7 @@ For the purposes of this conversation, you are a helpful agent who is present at
 
 
 CONTEXT: {context}
-HISTORY: {history}
+HISTORY: {chat_history}
 QUESTION: {question}
 Helpful Answer: [/INST]
 """)
@@ -181,36 +181,13 @@ class ExtractAnswer:
         else:
             return None
 
-from langchain_core.memory import BaseMemory
+from langchain.memory import ConversationBufferMemory
 
-class CustomConversationMemory(BaseMemory):
-    def __init__(self, max_conversations=10):
-        self.max_conversations = max_conversations
-        self.conversations = []
-
-    def clear(self):
-        self.conversations = []
-
-    def load_memory_variables(self, inputs):
-        # Load the history as a formatted string of Q&A pairs
-        history = "\n".join([f"Q: {q}\nA: {a}" for q, a in self.conversations])
-        return {"history": history}
-
-    def memory_variables(self):
-        return ["history"]
-
-    def save_context(self, inputs, outputs):
-        # Save sanitized question and answer
-        question = inputs.get("question")
-        answer = outputs.get("answer")
-        if question and answer:
-            self.conversations.append((question, answer))
-            # Maintain only the last 'max_conversations' interactions
-            if len(self.conversations) > self.max_conversations:
-                self.conversations.pop(0)
-
-# Instantiate the memory
-conversation_memory = CustomConversationMemory(max_conversations=10)
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    output_key="answer",
+    return_messages=True
+)
 
 
 
@@ -225,7 +202,7 @@ chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={
         "prompt": prompt,
         # Passing history from our custom memory
-        "memory": conversation_memory
+        "memory": memory
     }
 )
 
@@ -296,7 +273,7 @@ def extract_answer_chain(query):
         return sanitized_query
     
     # Get the current context from memory
-    history = conversation_memory.load_memory_variables({}).get('history', '')
+    history = memory.load_memory_variables({}).get('history', '')
     
     # Invoke the chain with query, history, and config
     result = chain.invoke(
@@ -311,8 +288,8 @@ def extract_answer_chain(query):
     sanitized_answer = scan_output(sanitized_query, answer)
     
     # Save the interaction to memory
-    conversation_memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
-        
+    memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
+
     return sanitized_answer
 
 # Test queries
