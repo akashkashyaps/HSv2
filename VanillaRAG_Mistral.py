@@ -295,16 +295,23 @@ def scan_output(prompt, model_output):
 
 
 def extract_answer_chain(query):
-    # Add the query to memory
+    # Scan the input before processing
     sanitized_query = scan_input(query)
     
-
-    result = chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})
+    # If the query is invalid after scanning, return an appropriate response
+    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+        return sanitized_query
     
+    # Process the sanitized query
+    result = chain.invoke({"query": sanitized_query})
+    
+    # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
     
+    # Scan the output before returning
+    sanitized_answer = scan_output(sanitized_query, answer)
     
-    return answer
+    return sanitized_answer
 
 # Test queries
 test_queries = [
