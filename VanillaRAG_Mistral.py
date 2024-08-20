@@ -236,8 +236,7 @@ chain = RetrievalQA.from_chain_type(
     retriever=retriever_vanilla,
     return_source_documents=True,
     chain_type_kwargs={
-        "prompt": prompt,
-        "memory": memory
+        "prompt": prompt
     }
 )
 
