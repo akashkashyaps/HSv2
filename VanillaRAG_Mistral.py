@@ -307,7 +307,7 @@ def extract_answer_chain(query):
     
     # Invoke the chain with query and history
     history = memory.get_history()
-    result = chain.invoke({"question": sanitized_query, "chat_history": memory}, config={"callbacks": [langfuse_handler]})
+    result = chain.invoke({"question": sanitized_query, "chat_history": history}, config={"callbacks": [langfuse_handler]})
     
     answer = extract_answer_instance.run(result['result'])
     
