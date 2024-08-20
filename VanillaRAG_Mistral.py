@@ -160,13 +160,12 @@ For the purposes of this conversation, you are a helpful agent who is present at
 
 
 CONTEXT: {context}
-HISTORY: {history}
 QUESTION: {question}
 Helpful Answer: [/INST]
 """)
 
 
-prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question", "history"])
+prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
