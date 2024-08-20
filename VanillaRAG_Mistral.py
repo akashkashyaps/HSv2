@@ -1,4 +1,4 @@
-# Import dependancies
+# Import dependencies
 import torch
 import transformers
 import pandas as pd
@@ -17,11 +17,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
-LANGFUSE_SECRET_KEY="sk-lf-..."
-LANGFUSE_PUBLIC_KEY="pk-lf-..."
-LANGFUSE_HOST="https://cloud.langfuse.com"
+LANGFUSE_SECRET_KEY = "sk-lf-..."
+LANGFUSE_PUBLIC_KEY = "pk-lf-..."
+LANGFUSE_HOST = "https://cloud.langfuse.com"
 
-from langfuse.callback import CallbackHandler
 from langfuse.callback import CallbackHandler
 langfuse_handler = CallbackHandler(
     public_key="pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c",
@@ -63,7 +62,7 @@ model = transformers.AutoModelForCausalLM.from_pretrained(
 
 terminators = [
     tokenizer.eos_token_id,
-    tokenizer.convert_tokens_to_ids("<|eot_id|>")
+    tokenizer.convert_tokens_to_ids("")
 ]
 
 # Set the model to evaluation mode
@@ -157,7 +156,7 @@ prompt_template = ("""
 [INST]
 
 For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
-<|eot_id|>
+
 
 CONTEXT: {context}
 HISTORY: {history}
@@ -166,7 +165,7 @@ Helpful Answer: [/INST]
 """)
 
 
-prompt=PromptTemplate(template=prompt_template,input_variables=["context","question", "history"])
+prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question", "history"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
@@ -182,34 +181,41 @@ class ExtractAnswer:
         else:
             return None
 
-import threading
-from langchain.memory import ConversationBufferMemory
-from langchain.memory import ConversationSummaryMemory
-# Timer setup for memory clearing
-TIMEOUT_DURATION = 60
-conversation_memory = ConversationSummaryMemory(
-    llm=llm,
-    input_key="question",
-    output_key="answer"
-)
-timer_started = False
-clear_memory_timer = None
+# Custom ConversationMemory class
+import time
+from langchain.memory import BaseMemory
 
-def clear_memory():
-    global conversation_memory, clear_memory_timer, timer_started
-    conversation_memory.clear()
-    timer_started = False
+class ConversationMemory(BaseMemory):
+    def __init__(self, max_conversations=10, max_duration=60):
+        self.max_conversations = max_conversations
+        self.max_duration = max_duration  # in seconds
+        self.conversations = []
+        self.start_time = time.time()
 
-def start_timer():
-    global clear_memory_timer, timer_started
-    if not timer_started:
-        clear_memory_timer = threading.Timer(TIMEOUT_DURATION, clear_memory)
-        clear_memory_timer.start()
-        timer_started = True
+    def add_conversation(self, question, answer):
+        current_time = time.time()
+        if (len(self.conversations) >= self.max_conversations) or (current_time - self.start_time > self.max_duration):
+            # Reset the memory if limits are exceeded
+            self.clear_memory()
 
-from langchain.chains import RetrievalQA
+        self.conversations.append({"question": question, "answer": answer})
+
+    def get_context(self):
+        return "\n".join([f"Q: {conv['question']} A: {conv['answer']}" for conv in self.conversations])
+
+    def clear_memory(self):
+        self.conversations = []
+        self.start_time = time.time()
+
+    def __repr__(self):
+        return self.get_context()
+
+# Initialize conversation memory
+conversation_memory = ConversationMemory()
 
 # Define the retrieval chain
+from langchain.chains import RetrievalQA
+
 chain = RetrievalQA.from_chain_type(
     llm=HuggingFacePipeline(pipeline=generate_text),
     chain_type="stuff",
@@ -217,8 +223,9 @@ chain = RetrievalQA.from_chain_type(
     return_source_documents=True,
     chain_type_kwargs={
         "prompt": prompt,
+        # Passing history from our custom memory
         "memory": conversation_memory
-            }
+    }
 )
 
 # Define an instance of ExtractAnswer
@@ -232,16 +239,13 @@ from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
 # Initialize the Prompt Injection scanner
 prompt_injection_scanner = PromptInjection(threshold=0.5, match_type=InputMatchType.FULL)
 
-# Initialize the Secrets scanner
-# secrets_scanner = Secrets(redact_mode=Secrets.REDACT_PARTIAL)
-
 # Initialize the Toxicity scanner for inputs
 input_toxicity_scanner = InputToxicity(threshold=0.5, match_type=InputMatchType.SENTENCE)
 
 # Initialize the Toxicity scanner for outputs
 output_toxicity_scanner = OutputToxicity(threshold=0.5, match_type=OutputMatchType.SENTENCE)
 
-# Initialize the NoRefusal scanner
+# Initialize the No Refusal scanner
 no_refusal_scanner = NoRefusal(threshold=0.5, match_type=OutputMatchType.FULL)
 
 # Initialize the Ban Topics scanner
@@ -285,14 +289,13 @@ def scan_output(prompt, model_output):
 
 
 def extract_answer_chain(query):
-    start_timer()
     sanitized_query = scan_input(query)
     
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Load the history from memory
-    history = conversation_memory.load_memory_variables({}).get('history', '')
+    # Get the current context from memory
+    history = conversation_memory.get_context()
     
     # Invoke the chain with query, history, and config
     result = chain.invoke(
@@ -307,10 +310,11 @@ def extract_answer_chain(query):
     sanitized_answer = scan_output(sanitized_query, answer)
     
     # Save the interaction to memory
-    conversation_memory.save_context({"question": sanitized_query}, {"answer": sanitized_answer})
+    conversation_memory.add_conversation(sanitized_query, sanitized_answer)
     
     return sanitized_answer
 
+# Test queries
 test_queries = [
     "Are there placements?",  
     "Where?",  
@@ -319,6 +323,7 @@ test_queries = [
 
 for query in test_queries:
     print(f"Query: {query}\nResponse: {extract_answer_chain(query)}\n")
+
 
 # Integrate the extraction with the retrieval chain
 # def extract_answer_chain(query):
