@@ -152,40 +152,6 @@ vectorstore = Chroma.from_documents(
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 
-# Custom Memory Manager class
-import time
-from collections import OrderedDict
-
-class CustomMemory:
-    def __init__(self, max_entries=10, max_age=60):
-        self.memory = OrderedDict()
-        self.max_entries = max_entries
-        self.max_age = max_age  # Max age in seconds
-        self.last_cleanup = time.time()
-
-    def _cleanup(self):
-        current_time = time.time()
-        # Remove old entries
-        while self.memory and (current_time - next(iter(self.memory.values()))['timestamp'] > self.max_age):
-            self.memory.popitem(last=False)
-        # Remove excess entries
-        if len(self.memory) > self.max_entries:
-            self.memory.popitem(last=False)
-
-    def add_entry(self, query, answer):
-        self._cleanup()
-        timestamp = time.time()
-        self.memory[query] = {'answer': answer, 'timestamp': timestamp}
-
-    def get_history(self):
-        self._cleanup()
-        history = "\n".join(f"Q: {query}\nA: {data['answer']}" for query, data in self.memory.items())
-        return history
-
-    def reset_memory(self):
-        self.memory.clear()
-
-memory = CustomMemory(max_entries=10, max_age=60)
 
 prompt_template = ("""
 [INST]
@@ -194,7 +160,7 @@ For the purposes of this conversation, you are a helpful agent who is present at
 
 
 CONTEXT: {context}
-HISTORY: {chat_history}
+HISTORY: {history}
 QUESTION: {question}
 Helpful Answer: [/INST]
 """)
@@ -215,6 +181,9 @@ class ExtractAnswer:
             return answer
         else:
             return None
+
+# Define an instance of ExtractAnswer
+extract_answer_instance = ExtractAnswer()
 
 # from langchain.memory import ConversationBufferMemory
 
@@ -240,9 +209,58 @@ chain = RetrievalQA.from_chain_type(
     }
 )
 
-# Define an instance of ExtractAnswer
-extract_answer_instance = ExtractAnswer()
 
+import threading
+# Timer setup for memory clearing
+TIMEOUT_DURATION = 60
+from collections import deque
+from langchain.memory import ConversationBufferMemory
+
+class CustomConversationBufferMemory(ConversationBufferMemory):
+    def __init__(self, max_memory_size=10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_memory_size = max_memory_size
+        self.memory = deque(maxlen=max_memory_size)
+
+    def save_context(self, inputs, outputs):
+        question = inputs.get(self.input_key, "")
+        answer = outputs.get(self.output_key, "")
+
+        # Add the question and answer to the circular buffer
+        self.memory.append((question, answer))
+
+        # Optionally, you can also update the chat_memory with the recent conversations if needed
+        self.chat_memory.add_user_message(question)
+        self.chat_memory.add_ai_message(answer)
+
+    def get_memory(self):
+        return list(self.memory)
+
+# Usage
+conversation_memory = CustomConversationBufferMemory(
+    memory_key="history",
+    input_key="question",
+    output_key="answer",
+    max_memory_size=10
+)
+
+timer_started = False
+clear_memory_timer = None
+
+def clear_memory():
+    global conversation_memory, clear_memory_timer, timer_started
+    conversation_memory.clear()
+    timer_started = False
+
+def start_timer():
+    global clear_memory_timer, timer_started
+    if not timer_started:
+        clear_memory_timer = threading.Timer(TIMEOUT_DURATION, clear_memory)
+        clear_memory_timer.start()
+        timer_started = True
+
+from langchain.chains import RetrievalQA
+from langchain.memory import ConversationBufferMemory
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
 from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics
@@ -302,16 +320,18 @@ def scan_output(prompt, model_output):
 
 def extract_answer_chain(query):
     # Add the query to memory
-    sanitized_query = query
+    sanitized_query = scan_input(query)
     
-    # Invoke the chain with query and history
-    history = memory.get_history()
-    result = chain.invoke({"question": sanitized_query, "chat_history": history}, config={"callbacks": [langfuse_handler]})
+
+    result = chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})
     
     answer = extract_answer_instance.run(result['result'])
     
-    # Add the answer to memory
-    memory.add_entry(sanitized_query, answer)
+     # Save the question and answer to memory
+    conversation_memory.save_context(
+        inputs={"question": sanitized_query},
+        outputs={"answer": answer}
+    )
     
     return answer
 
