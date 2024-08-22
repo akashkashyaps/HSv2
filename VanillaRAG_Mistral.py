@@ -331,9 +331,23 @@ def extract_answer_chain(query):
         context=context,
         question=sanitized_query
     )
+    prompt_template = PromptTemplate(template=prompt, input_variables=["formatted_memory", "context", "question"])
     
-    # Generate the response using the LLM
-    result = retrieval_qa_chain.llm(prompt)
+    dynamic_retrieval_qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=retriever_vanilla,
+        return_source_documents=True,
+        chain_type_kwargs={
+            "prompt": prompt_template,
+        }
+    )
+    # Generate the response using the dynamically created RetrievalQA chain
+    result = dynamic_retrieval_qa_chain.invoke({
+        "formatted_memory": formatted_memory,
+        "context": context,
+        "question": sanitized_query
+    })
     
     # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
