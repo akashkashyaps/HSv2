@@ -8,7 +8,6 @@ from langchain_huggingface import HuggingFacePipeline
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from datasets import Dataset
 from langchain_community.document_loaders import Docx2txtLoader
@@ -153,19 +152,30 @@ vectorstore = Chroma.from_documents(
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
 
 
-prompt_template = ("""
+# prompt_template = ("""
+# [INST]
+
+# For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+
+
+# CONTEXT: {context}
+# QUESTION: {question}
+# Helpful Answer: [/INST]
+# """)
+
+
+# prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+# Initialize prompt template
+prompt_template = PromptTemplate(template="""
 [INST]
 
 For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
 
-
+{formatted_memory}
 CONTEXT: {context}
 QUESTION: {question}
 Helpful Answer: [/INST]
-""")
-
-
-prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+""", input_variables=["formatted_memory", "context", "question"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
@@ -184,58 +194,69 @@ class ExtractAnswer:
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
-# from langchain.memory import ConversationBufferMemory
+from langchain.chains import RetrievalQA
 
-# memory = ConversationBufferMemory(
-#     chat_memory="chat_history",
-#     ai_prefix="Helpful Answer: [/INST]",
-#     input_key="question",
-#     output_key="answer",
-#     return_messages=True
+# Initialize memory
+memory = []
+conversation_count = 0
+max_conversations = 10
+
+# Functions to format memory and update memory
+def format_memory(memory):
+    formatted_memory = ""
+    for conversation in memory:
+        formatted_memory += f"User: {conversation['query']}\nAssistant: {conversation['response']}\n"
+    return formatted_memory
+
+def update_memory(memory, user_query, model_response, conversation_count, max_conversations):
+    memory.append({"query": user_query, "response": model_response})
+    conversation_count += 1
+    if conversation_count >= max_conversations:
+        memory = []  # Clear the memory
+        conversation_count = 0  # Reset the counter
+    return memory, conversation_count
+
+# Define a custom chain class to handle dynamic prompts
+class DynamicPromptRetrievalQA(RetrievalQA):
+    def _invoke(self, inputs):
+        # Extract input parameters
+        query = inputs.get('query')
+        
+        # Retrieve context based on the query
+        context_docs = self.retriever.get_relevant_documents(query)
+        context = " ".join([doc.page_content for doc in context_docs])
+        
+        # Format the memory and create the prompt
+        formatted_memory = format_memory(memory)
+        prompt = prompt_template.format(
+            formatted_memory=formatted_memory,
+            context=context,
+            question=query
+        )
+        
+        # Generate the response using the LLM
+        result = self.llm(prompt)
+        return result
+
+# Initialize the dynamic prompt chain
+dynamic_chain = DynamicPromptRetrievalQA(
+    llm=HuggingFacePipeline(pipeline=generate_text),
+    retriever=retriever_vanilla,
+    return_source_documents=True,
+    chain_type = "stuff"
+)
+
+# chain = RetrievalQA.from_chain_type(
+#     llm=HuggingFacePipeline(pipeline=generate_text),
+#     chain_type="stuff",
+#     retriever=retriever_vanilla,
+#     return_source_documents=True,
+#     chain_type_kwargs={
+#         "prompt": prompt,
+#     }
 # )
 
 
-
-import threading
-# Timer setup for memory clearing
-TIMEOUT_DURATION = 60
-from collections import deque
-from langchain.memory import ConversationSummaryBufferMemory
-
-conversation_memory=ConversationSummaryBufferMemory(
-        llm=llm,
-        max_token_limit=650
-
-)
-timer_started = False
-clear_memory_timer = None
-
-def clear_memory():
-    global conversation_memory, clear_memory_timer, timer_started
-    conversation_memory.clear()
-    timer_started = False
-
-def start_timer():
-    global clear_memory_timer, timer_started
-    if not timer_started:
-        clear_memory_timer = threading.Timer(TIMEOUT_DURATION, clear_memory)
-        clear_memory_timer.start()
-        timer_started = True
-
-from langchain.chains import RetrievalQA
-
-chain = RetrievalQA.from_chain_type(
-    llm=HuggingFacePipeline(pipeline=generate_text),
-    chain_type="stuff",
-    retriever=retriever_vanilla,
-    return_source_documents=True,
-    chain_type_kwargs={
-        "prompt": prompt,
-        "memory": conversation_memory
-    }
-)
-
-from langchain.memory import ConversationBufferMemory
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
 from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics
@@ -293,22 +314,44 @@ def scan_output(prompt, model_output):
     return sanitized_output
 
 
+# def extract_answer_chain(query):
+#     # Scan the input before processing
+#     sanitized_query = scan_input(query)
+    
+#     # If the query is invalid after scanning, return an appropriate response
+#     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+#         return sanitized_query
+    
+#     # Process the sanitized query
+#     result = chain.invoke({"query": sanitized_query})
+    
+#     # Extract the answer from the result
+#     answer = extract_answer_instance.run(result['result'])
+    
+#     # Scan the output before returning
+#     sanitized_answer = scan_output(sanitized_query, answer)
+    
+#     return sanitized_answer
+
 def extract_answer_chain(query):
+    global memory, conversation_count  # Access global memory and counter
+    
     # Scan the input before processing
     sanitized_query = scan_input(query)
-    
-    # If the query is invalid after scanning, return an appropriate response
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Process the sanitized query
-    result = chain.invoke({"query": sanitized_query})
+    # Process the query with the dynamic chain
+    result = dynamic_chain.invoke({"query": sanitized_query})
     
     # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
     
     # Scan the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
+    
+    # Update the memory with the new conversation
+    memory, conversation_count = update_memory(memory, sanitized_query, sanitized_answer, conversation_count, max_conversations)
     
     return sanitized_answer
 
