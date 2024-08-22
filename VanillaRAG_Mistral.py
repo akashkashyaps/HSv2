@@ -346,9 +346,8 @@ def extract_answer_chain(query):
         }
     )
     # Generate the response using the dynamically created RetrievalQA chain
-    result = dynamic_retrieval_qa_chain.invoke({
-        "query": sanitized_query,
-        "formatted_memory": formatted_memory
+    result = dynamic_retrieval_qa_chain.run({
+        "query": sanitized_query
     })
     
     # Extract the answer from the result
