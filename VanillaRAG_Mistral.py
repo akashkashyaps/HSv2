@@ -343,6 +343,7 @@ def extract_answer_chain(query):
         return_source_documents=True,
         chain_type_kwargs={
             "prompt": prompt_template,
+            "memory": formatted_memory,
         }
     )
     # Generate the response using the dynamically created RetrievalQA chain
