@@ -201,20 +201,20 @@ memory = []
 conversation_count = 0
 max_conversations = 10
 
-# # Functions to format memory and update memory
-# def format_memory(memory):
-#     formatted_memory = ""
-#     for conversation in memory:
-#         formatted_memory += f"User: {conversation['query']}\nAssistant: {conversation['response']}\n"
-#     return formatted_memory
+# Functions to format memory and update memory
+def format_memory(memory):
+    formatted_memory = ""
+    for conversation in memory:
+        formatted_memory += f"User: {conversation['query']}\nAssistant: {conversation['response']}\n"
+    return formatted_memory
 
-# def update_memory(memory, user_query, model_response, conversation_count, max_conversations):
-#     memory.append({"query": user_query, "response": model_response})
-#     conversation_count += 1
-#     if conversation_count >= max_conversations:
-#         memory = []  # Clear the memory
-#         conversation_count = 0  # Reset the counter
-#     return memory, conversation_count
+def update_memory(memory, user_query, model_response, conversation_count, max_conversations):
+    memory.append({"query": user_query, "response": model_response})
+    conversation_count += 1
+    if conversation_count >= max_conversations:
+        memory = []  # Clear the memory
+        conversation_count = 0  # Reset the counter
+    return memory, conversation_count
 
 retrieval_qa_chain = RetrievalQA.from_chain_type(
     llm=HuggingFacePipeline(pipeline=generate_text),
@@ -347,7 +347,8 @@ def extract_answer_chain(query):
     )
     # Generate the response using the dynamically created RetrievalQA chain
     result = dynamic_retrieval_qa_chain.invoke({
-        "query": sanitized_query
+        "query": sanitized_query,
+        "formatted_memory": formatted_memory
     })
     
     # Extract the answer from the result
@@ -362,22 +363,6 @@ def extract_answer_chain(query):
     return sanitized_answer
 
 
-# Functions to format memory and update memory
-def format_memory(memory):
-    if not memory:
-        return ""
-    formatted_memory = ""
-    for conversation in memory:
-        formatted_memory += f"User: {conversation['query']}\nAssistant: {conversation['response']}\n"
-    return formatted_memory
-
-def update_memory(memory, user_query, model_response, conversation_count, max_conversations):
-    memory.append({"query": user_query, "response": model_response})
-    conversation_count += 1
-    if conversation_count >= max_conversations:
-        memory = []  # Clear the memory
-        conversation_count = 0  # Reset the counter
-    return memory, conversation_count
 # Test queries
 test_queries = [
     "What can I expect in a course?",  
