@@ -240,10 +240,8 @@ class DynamicPromptRetrievalQA(RetrievalQA):
 
 # Initialize the dynamic prompt chain
 dynamic_chain = DynamicPromptRetrievalQA(
-    llm=HuggingFacePipeline(pipeline=generate_text),
-    retriever=retriever_vanilla,
-    return_source_documents=True,
-    chain_type = "stuff"
+    llm=llm,
+    retriever=retriever_vanilla
 )
 
 # chain = RetrievalQA.from_chain_type(
