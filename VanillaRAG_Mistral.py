@@ -221,17 +221,6 @@ class ExtractAnswer:
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
-from langchain.chains import RetrievalQA
-
-chain = RetrievalQA.from_chain_type(
-    llm=HuggingFacePipeline(pipeline=generate_text),
-    chain_type="stuff",
-    retriever=retriever_vanilla,
-    return_source_documents=True,
-    chain_type_kwargs={
-        "prompt": prompt,
-    }
-)
 
 
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
@@ -324,6 +313,19 @@ def extract_answer_chain(query):
     # Retrieve the current memory
     current_memory = chat_memory.get_memory()
     
+    from langchain.chains import RetrievalQA
+
+    chain = RetrievalQA.from_chain_type(
+        llm=HuggingFacePipeline(pipeline=generate_text),
+        chain_type="stuff",
+        retriever=retriever_vanilla,
+        return_source_documents=True,
+        chain_type_kwargs={
+            "prompt": prompt,
+            "memory": current_memory
+        }
+    )
+
     # Process the sanitized query with the prompt that includes memory
     result = chain.invoke({"memory": current_memory, "query": sanitized_query})
     
