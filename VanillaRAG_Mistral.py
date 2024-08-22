@@ -216,34 +216,11 @@ def update_memory(memory, user_query, model_response, conversation_count, max_co
         conversation_count = 0  # Reset the counter
     return memory, conversation_count
 
-# Define a custom chain class to handle dynamic prompts
-class DynamicPromptRetrievalQA(RetrievalQA):
-    def _invoke(self, inputs):
-        # Extract input parameters
-        query = inputs.get('query')
-        
-        # Retrieve context based on the query
-        context_docs = self.retriever.get_relevant_documents(query)
-        context = " ".join([doc.page_content for doc in context_docs])
-        
-        # Format the memory and create the prompt
-        formatted_memory = format_memory(memory)
-        prompt = prompt_template.format(
-            formatted_memory=formatted_memory,
-            context=context,
-            question=query
-        )
-        
-        # Generate the response using the LLM
-        result = self.llm(prompt)
-        return result
-
-# Initialize the dynamic prompt chain
-dynamic_chain = DynamicPromptRetrievalQA(
+retrieval_qa_chain = RetrievalQA(
     llm=llm,
-    retriever=retriever_vanilla
+    retriever=retriever_vanilla,
+    prompt_template=prompt_template
 )
-
 # chain = RetrievalQA.from_chain_type(
 #     llm=HuggingFacePipeline(pipeline=generate_text),
 #     chain_type="stuff",
@@ -339,8 +316,20 @@ def extract_answer_chain(query):
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Process the query with the dynamic chain
-    result = dynamic_chain.invoke({"query": sanitized_query})
+    # Retrieve context based on the query
+    context_docs = retrieval_qa_chain.retriever.get_relevant_documents(sanitized_query)
+    context = " ".join([doc.page_content for doc in context_docs])
+    
+    # Format the memory and create the prompt
+    formatted_memory = format_memory(memory)
+    prompt = prompt_template.format(
+        formatted_memory=formatted_memory,
+        context=context,
+        question=sanitized_query
+    )
+    
+    # Generate the response using the LLM
+    result = retrieval_qa_chain.llm(prompt)
     
     # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
