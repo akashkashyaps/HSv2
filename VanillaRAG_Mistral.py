@@ -165,17 +165,44 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 
 
 # prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-# Initialize prompt template
-prompt_template = PromptTemplate(template="""
+
+# Updated prompt template to include memory
+from collections import deque
+
+class ChatMemory:
+    def __init__(self, max_memory_size=10):
+        self.memory = deque(maxlen=max_memory_size)
+
+    def add_conversation(self, question, answer):
+        self.memory.append((question, answer))
+
+    def clear_memory(self):
+        self.memory.clear()
+
+    def get_memory(self):
+        # Return formatted memory as a string for the prompt
+        memory_str = "\n".join([f"Q: {q}\nA: {a}" for q, a in self.memory])
+        return memory_str
+
+    def is_memory_full(self):
+        return len(self.memory) == self.memory.maxlen
+
+
+prompt_template = ("""
 [INST]
 
-For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history, recent conversations, and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
 
-{formatted_memory}
+Recent conversations:
+{memory}
+
 CONTEXT: {context}
 QUESTION: {question}
 Helpful Answer: [/INST]
-""", input_variables=["formatted_memory", "context", "question"])
+""")
+
+prompt = PromptTemplate(template=prompt_template, input_variables=["memory", "context", "question"])
+
 
 llm = HuggingFacePipeline(pipeline=generate_text)
 
@@ -196,44 +223,15 @@ extract_answer_instance = ExtractAnswer()
 
 from langchain.chains import RetrievalQA
 
-# Initialize memory
-memory = []
-conversation_count = 0
-max_conversations = 10
-
-# Functions to format memory and update memory
-def format_memory(memory):
-    formatted_memory = ""
-    for conversation in memory:
-        formatted_memory += f"User: {conversation['query']}\nAssistant: {conversation['response']}\n"
-    return formatted_memory
-
-def update_memory(memory, user_query, model_response, conversation_count, max_conversations):
-    memory.append({"query": user_query, "response": model_response})
-    conversation_count += 1
-    if conversation_count >= max_conversations:
-        memory = []  # Clear the memory
-        conversation_count = 0  # Reset the counter
-    return memory, conversation_count
-
-retrieval_qa_chain = RetrievalQA.from_chain_type(
+chain = RetrievalQA.from_chain_type(
     llm=HuggingFacePipeline(pipeline=generate_text),
     chain_type="stuff",
     retriever=retriever_vanilla,
     return_source_documents=True,
     chain_type_kwargs={
-        "prompt": prompt_template,
+        "prompt": prompt,
     }
 )
-# chain = RetrievalQA.from_chain_type(
-#     llm=HuggingFacePipeline(pipeline=generate_text),
-#     chain_type="stuff",
-#     retriever=retriever_vanilla,
-#     return_source_documents=True,
-#     chain_type_kwargs={
-#         "prompt": prompt,
-#     }
-# )
 
 
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
@@ -312,44 +310,22 @@ def scan_output(prompt, model_output):
     
 #     return sanitized_answer
 
+# Initialize the memory with a max size of 10 conversations
+chat_memory = ChatMemory(max_memory_size=10)
+
 def extract_answer_chain(query):
-    global memory, conversation_count  # Access global memory and counter
-    
     # Scan the input before processing
     sanitized_query = scan_input(query)
+    
+    # If the query is invalid after scanning, return an appropriate response
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Format the memory and create the prompt
-    formatted_memory = format_memory(memory)
-    if not formatted_memory.strip():  # If memory is empty, handle it gracefully
-        formatted_memory = "You have no previous conversation history."
-
-    prompt_template = PromptTemplate(template="""
-    [INST]
-
-    For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
-
-    HISTORY:{formatted_memory}
-    CONTEXT: {context}
-    QUESTION: {question}
-    Helpful Answer: [/INST]
-    """, input_variables=["formatted_memory", "context", "question"])
+    # Retrieve the current memory
+    current_memory = chat_memory.get_memory()
     
-    dynamic_retrieval_qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever_vanilla,
-        return_source_documents=True,
-        chain_type_kwargs={
-            "prompt": prompt_template,
-            "memory": formatted_memory,
-        }
-    )
-    # Generate the response using the dynamically created RetrievalQA chain
-    result = dynamic_retrieval_qa_chain.invoke({
-        "query": sanitized_query
-    })
+    # Process the sanitized query with the prompt that includes memory
+    result = chain.invoke({"memory": current_memory, "query": sanitized_query})
     
     # Extract the answer from the result
     answer = extract_answer_instance.run(result['result'])
@@ -357,11 +333,14 @@ def extract_answer_chain(query):
     # Scan the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
     
-    # Update the memory with the new conversation
-    memory, conversation_count = update_memory(memory, sanitized_query, sanitized_answer, conversation_count, max_conversations)
+    # Add the current Q&A to the memory
+    chat_memory.add_conversation(sanitized_query, sanitized_answer)
     
-    return sanitized_answer
+    # Optionally clear memory if full (10 conversations)
+    if chat_memory.is_memory_full():
+        chat_memory.clear_memory()
 
+    return sanitized_answer
 
 # Test queries
 test_queries = [
