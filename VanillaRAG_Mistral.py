@@ -320,18 +320,19 @@ def extract_answer_chain(query):
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
     
-    # Retrieve context based on the query
-    context_docs = retrieval_qa_chain.retriever.get_relevant_documents(sanitized_query)
-    context = " ".join([doc.page_content for doc in context_docs])
-    
     # Format the memory and create the prompt
     formatted_memory = format_memory(memory)
-    prompt = prompt_template.format(
-        formatted_memory=formatted_memory,
-        context=context,
-        question=sanitized_query
-    )
-    prompt_template = PromptTemplate(template=prompt, input_variables=["formatted_memory", "context", "question"])
+
+    prompt_template = PromptTemplate(template="""
+    [INST]
+
+    For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+
+    HISTORY:{formatted_memory}
+    CONTEXT: {context}
+    QUESTION: {question}
+    Helpful Answer: [/INST]
+    """, input_variables=["formatted_memory", "context", "question"])
     
     dynamic_retrieval_qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
@@ -345,7 +346,6 @@ def extract_answer_chain(query):
     # Generate the response using the dynamically created RetrievalQA chain
     result = dynamic_retrieval_qa_chain.invoke({
         "formatted_memory": formatted_memory,
-        "context": context,
         "question": sanitized_query
     })
     
