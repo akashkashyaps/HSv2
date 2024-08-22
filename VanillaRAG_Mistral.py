@@ -322,6 +322,8 @@ def extract_answer_chain(query):
     
     # Format the memory and create the prompt
     formatted_memory = format_memory(memory)
+    if not formatted_memory.strip():  # If memory is empty, handle it gracefully
+        formatted_memory = "You have no previous conversation history."
 
     prompt_template = PromptTemplate(template="""
     [INST]
