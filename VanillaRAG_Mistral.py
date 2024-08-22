@@ -216,10 +216,14 @@ def update_memory(memory, user_query, model_response, conversation_count, max_co
         conversation_count = 0  # Reset the counter
     return memory, conversation_count
 
-retrieval_qa_chain = RetrievalQA(
-    llm=llm,
+retrieval_qa_chain = RetrievalQA.from_chain_type(
+    llm=HuggingFacePipeline(pipeline=generate_text),
+    chain_type="stuff",
     retriever=retriever_vanilla,
-    prompt_template=prompt_template
+    return_source_documents=True,
+    chain_type_kwargs={
+        "prompt": prompt_template,
+    }
 )
 # chain = RetrievalQA.from_chain_type(
 #     llm=HuggingFacePipeline(pipeline=generate_text),
