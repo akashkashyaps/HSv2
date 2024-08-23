@@ -297,7 +297,7 @@ def get_rag_response(query):
     result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query})
     
     # Step 6: Extract the answer from the result
-    answer = extract_answer_instance.run(result['result'])
+    answer = extract_answer_instance.run(result)
 
     # Step 7: Sanitize the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
