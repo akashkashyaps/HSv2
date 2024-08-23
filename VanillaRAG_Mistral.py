@@ -166,27 +166,6 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 
 # prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-# Updated prompt template to include memory
-from collections import deque
-
-class ChatMemory:
-    def __init__(self, max_memory_size=10):
-        self.memory = deque(maxlen=max_memory_size)
-
-    def add_conversation(self, question, answer):
-        self.memory.append((question, answer))
-
-    def clear_memory(self):
-        self.memory.clear()
-
-    def get_memory(self):
-        # Return formatted memory as a string for the prompt
-        memory_str = "\n".join([f"Q: {q}\nA: {a}" for q, a in self.memory])
-        return memory_str
-
-    def is_memory_full(self):
-        return len(self.memory) == self.memory.maxlen
-
 
 prompt_template = ("""
 [INST]
@@ -194,7 +173,7 @@ prompt_template = ("""
 For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history, recent conversations, and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
 
 Recent conversations:
-{memory}
+{chat_history}
 
 CONTEXT: {context}
 QUESTION: {question}
@@ -221,7 +200,28 @@ class ExtractAnswer:
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
+class ChatHistoryManager:
+    def __init__(self, history_limit=10):
+        self.history_limit = history_limit
+        self.chat_history = []
 
+    def add_interaction(self, question, answer):
+        if len(self.chat_history) >= self.history_limit * 2:  # Each Q&A is 2 entries
+            self.chat_history = self.chat_history[2:]  # Remove the oldest Q&A pair
+        self.chat_history.append(f"Q: {question}")
+        self.chat_history.append(f"A: {answer}")
+
+    def get_chat_history(self):
+        return "\n".join(self.chat_history)
+    
+    def clear_history(self):
+        self.chat_history = []
+
+# Initialize the chat history manager
+history_manager = ChatHistoryManager()
+
+from langchain.chains import LLMChain
+rag_chain = LLMChain(llm=llm, prompt=prompt_template)
 
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
@@ -279,6 +279,33 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
+def get_rag_response(query):
+    # Step 1: Sanitize the input query
+    sanitized_query = scan_input(query)
+    
+    # Step 2: Check if the sanitized query is valid
+    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+        return sanitized_query
+
+    # Step 3: Retrieve context from vector store using sanitized query
+    context = retriever_vanilla.get_relevant_documents(sanitized_query)
+    
+    # Step 4: Get chat history
+    chat_history = history_manager.get_chat_history()
+
+    # Step 5: Generate a response using the RAG pipeline
+    result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query})
+    
+    # Step 6: Extract the answer from the result
+    answer = extract_answer_instance.run(result['result'])
+
+    # Step 7: Sanitize the output before returning
+    sanitized_answer = scan_output(sanitized_query, answer)
+    
+    # Step 8: Store the sanitized Q&A pair in chat history
+    history_manager.add_interaction(sanitized_query, sanitized_answer)
+    
+    return sanitized_answer
 
 # def extract_answer_chain(query):
 #     # Scan the input before processing
@@ -299,50 +326,6 @@ def scan_output(prompt, model_output):
     
 #     return sanitized_answer
 
-# Initialize the memory with a max size of 10 conversations
-chat_memory = ChatMemory(max_memory_size=10)
-
-def extract_answer_chain(query):
-    # Scan the input before processing
-    sanitized_query = scan_input(query)
-    
-    # If the query is invalid after scanning, return an appropriate response
-    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
-        return sanitized_query
-    
-    # Retrieve the current memory
-    current_memory = chat_memory.get_memory()
-    
-    from langchain.chains import RetrievalQA
-
-    chain = RetrievalQA.from_chain_type(
-        llm=HuggingFacePipeline(pipeline=generate_text),
-        chain_type="stuff",
-        retriever=retriever_vanilla,
-        return_source_documents=True,
-        chain_type_kwargs={
-            "prompt": prompt,
-            "memory": current_memory
-        }
-    )
-
-    # Process the sanitized query with the prompt that includes memory
-    result = chain.invoke({"memory": current_memory, "query": sanitized_query})
-    
-    # Extract the answer from the result
-    answer = extract_answer_instance.run(result['result'])
-    
-    # Scan the output before returning
-    sanitized_answer = scan_output(sanitized_query, answer)
-    
-    # Add the current Q&A to the memory
-    chat_memory.add_conversation(sanitized_query, sanitized_answer)
-    
-    # Optionally clear memory if full (10 conversations)
-    if chat_memory.is_memory_full():
-        chat_memory.clear_memory()
-
-    return sanitized_answer
 
 # Test queries
 test_queries = [
@@ -352,7 +335,7 @@ test_queries = [
 ]
 
 for query in test_queries:
-    print(f"Query: {query}\nResponse: {extract_answer_chain(query)}\n")
+    print(f"Query: {query}\nResponse: {get_rag_response(query)}\n")
 
 
 # Integrate the extraction with the retrieval chain
