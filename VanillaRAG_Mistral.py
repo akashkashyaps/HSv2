@@ -329,9 +329,9 @@ def get_rag_response(query):
 
 # Test queries
 test_queries = [
-    "What can I expect in a course?",  
+    "Tell me about the game development course",  
     "Jobs?",  
-    "Which companies are involved?",  
+    "Where can I get?",  
 ]
 
 for query in test_queries:
