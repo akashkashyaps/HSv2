@@ -295,9 +295,10 @@ def get_rag_response(query):
 
     # Step 5: Generate a response using the RAG pipeline
     result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query})
-    
+    # Debug print to check the structure of the result
+    print("Debug - Result structure:", result)
     # Step 6: Extract the answer from the result
-    answer = extract_answer_instance.run(result)
+    answer = extract_answer_instance.run(result['result'])
 
     # Step 7: Sanitize the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
