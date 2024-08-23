@@ -282,6 +282,7 @@ def scan_output(prompt, model_output):
     return sanitized_output
 
 def get_rag_response(query):
+    trace = langfuse_handler.start_trace(name="RAG Pipeline", metadata={"query": query})
     # Step 1: Sanitize the input query
     sanitized_query = scan_input(query)
     
@@ -304,7 +305,7 @@ def get_rag_response(query):
 
     # Step 7: Sanitize the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
-    
+    trace.log_event(name="Sanitized Answer", metadata={"sanitized_query": sanitized_query, "sanitized_answer": sanitized_answer})
     # Step 8: Store the sanitized Q&A pair in chat history
     history_manager.add_interaction(sanitized_query, sanitized_answer)
     
