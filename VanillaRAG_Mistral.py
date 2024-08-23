@@ -16,16 +16,20 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
-LANGFUSE_SECRET_KEY = "sk-lf-..."
-LANGFUSE_PUBLIC_KEY = "pk-lf-..."
-LANGFUSE_HOST = "https://cloud.langfuse.com"
-
+import os
+from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
-langfuse_handler = CallbackHandler(
-    public_key="pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c",
-    secret_key="sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1",
-    host="https://cloud.langfuse.com"
-)
+
+# Set environment variables
+os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c"
+os.environ["LANGFUSE_SECRET_KEY"] = "sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1"
+os.environ["LANGFUSE_HOST"] = "https://cloud.langfuse.com"
+
+# Initialize Langfuse client
+langfuse = Langfuse()
+
+# Initialize Langfuse callback handler
+langfuse_handler = CallbackHandler()
 
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
