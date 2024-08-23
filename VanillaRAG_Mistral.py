@@ -281,34 +281,55 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
+from langfuse import Langfuse
+
 def get_rag_response(query):
-    trace = langfuse_handler.start_trace(name="RAG Pipeline", metadata={"query": query})
-    # Step 1: Sanitize the input query
-    sanitized_query = scan_input(query)
-    
+    # Initialize Langfuse
+    langfuse = Langfuse()
+    trace = langfuse.trace(name="RAG_Pipeline")
+
+    with trace.span(name="Input_Sanitization"):
+        # Step 1: Sanitize the input query
+        sanitized_query = scan_input(query)
+
     # Step 2: Check if the sanitized query is valid
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+        trace.end(output=sanitized_query)
         return sanitized_query
 
-    # Step 3: Retrieve context from vector store using sanitized query
-    context = retriever_vanilla.get_relevant_documents(sanitized_query)
-    
-    # Step 4: Get chat history
-    chat_history = history_manager.get_chat_history()
+    with trace.span(name="Context_Retrieval"):
+        # Step 3: Retrieve context from vector store using sanitized query
+        context = retriever_vanilla.get_relevant_documents(sanitized_query)
 
-    # Step 5: Generate a response using the RAG pipeline
-    result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query},config={"callbacks": [langfuse_handler]})
+    with trace.span(name="Chat_History_Retrieval"):
+        # Step 4: Get chat history
+        chat_history = history_manager.get_chat_history()
+
+    with trace.span(name="RAG_Generation"):
+        # Step 5: Generate a response using the RAG pipeline
+        result = rag_chain.invoke(
+            {"context": context, "chat_history": chat_history, "question": sanitized_query},
+            config={"callbacks": [langfuse_handler]}
+        )
+
     # Debug print to check the structure of the result
     print("Debug - Result structure:", result)
-    # Step 6: Extract the answer from the result
-    answer = extract_answer_instance.run(result)
 
-    # Step 7: Sanitize the output before returning
-    sanitized_answer = scan_output(sanitized_query, answer)
-    trace.log_event(name="Sanitized Answer", metadata={"sanitized_query": sanitized_query, "sanitized_answer": sanitized_answer})
-    # Step 8: Store the sanitized Q&A pair in chat history
-    history_manager.add_interaction(sanitized_query, sanitized_answer)
-    
+    with trace.span(name="Answer_Extraction"):
+        # Step 6: Extract the answer from the result
+        answer = extract_answer_instance.run(result)
+
+    with trace.span(name="Output_Sanitization"):
+        # Step 7: Sanitize the output before returning
+        sanitized_answer = scan_output(sanitized_query, answer)
+
+    with trace.span(name="History_Update"):
+        # Step 8: Store the sanitized Q&A pair in chat history
+        history_manager.add_interaction(sanitized_query, sanitized_answer)
+
+    # End the trace with the final sanitized answer
+    trace.end(output=sanitized_answer)
+
     return sanitized_answer
 
 # def extract_answer_chain(query):
