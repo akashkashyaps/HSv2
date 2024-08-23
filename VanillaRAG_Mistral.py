@@ -16,20 +16,16 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
-import os
-from langfuse import Langfuse
+LANGFUSE_SECRET_KEY = "sk-lf-..."
+LANGFUSE_PUBLIC_KEY = "pk-lf-..."
+LANGFUSE_HOST = "https://cloud.langfuse.com"
+
 from langfuse.callback import CallbackHandler
-
-# Set environment variables
-os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c"
-os.environ["LANGFUSE_SECRET_KEY"] = "sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1"
-os.environ["LANGFUSE_HOST"] = "https://cloud.langfuse.com"
-
-# Initialize Langfuse client
-langfuse = Langfuse()
-
-# Initialize Langfuse callback handler
-langfuse_handler = CallbackHandler()
+langfuse_handler = CallbackHandler(
+    public_key="pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c",
+    secret_key="sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1",
+    host="https://cloud.langfuse.com"
+)
 
 # Define the model
 model_id = "mistralai/Mistral-7B-Instruct-v0.3"
@@ -285,61 +281,34 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
-from langfuse import Langfuse
-
 def get_rag_response(query):
-    # Create a new trace for each query
-    trace = langfuse.trace(name="RAG_Pipeline")
+    # Step 1: Sanitize the input query
+    sanitized_query = scan_input(query)
+    
+    # Step 2: Check if the sanitized query is valid
+    if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+        return sanitized_query
 
-    try:
-        with trace.span(name="Input_Sanitization"):
-            # Step 1: Sanitize the input query
-            sanitized_query = scan_input(query)
+    # Step 3: Retrieve context from vector store using sanitized query
+    context = retriever_vanilla.get_relevant_documents(sanitized_query)
+    
+    # Step 4: Get chat history
+    chat_history = history_manager.get_chat_history()
 
-        # Step 2: Check if the sanitized query is valid
-        if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
-            trace.end(output=sanitized_query)
-            return sanitized_query
+    # Step 5: Generate a response using the RAG pipeline
+    result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query},config={"callbacks": [langfuse_handler]})
+    # Debug print to check the structure of the result
+    print("Debug - Result structure:", result)
+    # Step 6: Extract the answer from the result
+    answer = extract_answer_instance.run(result)
 
-        with trace.span(name="Context_Retrieval"):
-            # Step 3: Retrieve context from vector store using sanitized query
-            context = retriever_vanilla.get_relevant_documents(sanitized_query)
-
-        with trace.span(name="Chat_History_Retrieval"):
-            # Step 4: Get chat history
-            chat_history = history_manager.get_chat_history()
-
-        with trace.span(name="RAG_Generation"):
-            # Step 5: Generate a response using the RAG pipeline
-            result = rag_chain.invoke(
-                {"context": context, "chat_history": chat_history, "question": sanitized_query},
-                config={"callbacks": [langfuse_handler]}
-            )
-
-        # Debug print to check the structure of the result
-        print("Debug - Result structure:", result)
-
-        with trace.span(name="Answer_Extraction"):
-            # Step 6: Extract the answer from the result
-            answer = extract_answer_instance.run(result)
-
-        with trace.span(name="Output_Sanitization"):
-            # Step 7: Sanitize the output before returning
-            sanitized_answer = scan_output(sanitized_query, answer)
-
-        with trace.span(name="History_Update"):
-            # Step 8: Store the sanitized Q&A pair in chat history
-            history_manager.add_interaction(sanitized_query, sanitized_answer)
-
-        # End the trace with the final sanitized answer
-        trace.end(output=sanitized_answer)
-
-        return sanitized_answer
-
-    except Exception as e:
-        # If an error occurs, log it and end the trace
-        trace.end(error=str(e))
-        raise e
+    # Step 7: Sanitize the output before returning
+    sanitized_answer = scan_output(sanitized_query, answer)
+    
+    # Step 8: Store the sanitized Q&A pair in chat history
+    history_manager.add_interaction(sanitized_query, sanitized_answer)
+    
+    return sanitized_answer
 
 # def extract_answer_chain(query):
 #     # Scan the input before processing
@@ -363,9 +332,9 @@ def get_rag_response(query):
 
 # Test queries
 test_queries = [
-    "Tell me about the game development course",  
-    "Jobs?",  
-    "Where can I get?",  
+    "Can you tell me about the Games Development Laboratory at NTU?",  
+    "How does the it support students in their coursework?",  
+    "What other facilities are available at NTU that might complement the lab?",  
 ]
 
 for query in test_queries:
