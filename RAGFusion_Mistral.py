@@ -135,7 +135,7 @@ retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = EnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.3, 0.3, 0.4]
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.4, 0.4, 0.2]
 )
 
 
@@ -183,7 +183,7 @@ def extract_answer_chain(query):
     result = chain.invoke({"query": query})
     return extract_answer_instance.run(result['result'])
 
-query = "what are you?"
+query = "who are you?"
 data = ensemble_retriever.get_relevant_documents(query)
 print(data)
 # import time
