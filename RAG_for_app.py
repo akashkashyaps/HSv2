@@ -296,5 +296,5 @@ def get_rag_response(query):
     
     return answer
 
-
-print(get_rag_response("What is the history of Nottingham Trent University?"))
+if __name__ == "__main__":
+    print(get_rag_response("What is the history of Nottingham Trent University?"))
