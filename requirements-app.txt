@@ -18,4 +18,4 @@ llm_guard
 langchain_huggingface
 datasets
 docx2txt
-"fastapi[standard]"
+fastapi[standard]
