@@ -1,4 +1,5 @@
 # Import dependencies
+import os
 import torch
 import transformers
 import pandas as pd
@@ -142,11 +143,14 @@ for i, split in enumerate(recreated_splits):
 recreated_splits
 
 
+home_directory = os.path.expanduser("~")
+persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
+
 vectorstore = Chroma.from_documents(
     recreated_splits,
     embeddings,
     collection_name="CS_OpenDay",
-    persist_directory="/home/akash/HSv2/vecdb"
+    persist_directory=persist_directory
 )
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
