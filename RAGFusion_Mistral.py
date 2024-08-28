@@ -153,16 +153,6 @@ Helpful Answer: [/INST]
 prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
 
 llm = HuggingFacePipeline(pipeline=generate_text)
-import re
-class ExtractAnswer:
-    def run(self, text):
-        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
-        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-            return answer
-        else:
-            return None
 
 from langchain.chains import RetrievalQA
 
@@ -175,56 +165,37 @@ chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": prompt}
 )
 
-# Define an instance of ExtractAnswer
-extract_answer_instance = ExtractAnswer()
+import time
+from datasets import Dataset
+from tqdm import tqdm
+import pandas as pd
 
-# Integrate the extraction with the retrieval chain
-def extract_answer_chain(query):
-    result = chain.invoke({"query": query})
-    return extract_answer_instance.run(result['result'])
+# Create test set
+testVanilla = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
+questions = testVanilla['question'].tolist()
 
-query = "who are you?"
-data = ensemble_retriever.get_relevant_documents(query)
-print(data)
-# import time
-# from datasets import Dataset
-# from tqdm import tqdm
-# import pandas as pd
+# Create empty lists to store the results and the time taken
+results = []
+retrieval_time_list = []
+chain_time_list = []
 
-# # Create test set
-# testVanilla = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
-# questions = testVanilla['question'].tolist()
-
-# # Create empty lists to store the results and the time taken
-# results = []
-# retrieval_time_list = []
-# chain_time_list = []
-
-# # Loop through each question
-# for question in tqdm(questions):
-#     # Time the document retrieval process
-#     start_retrieval = time.time()
-#     doc = ensemble_retriever.get_relevant_documents(question)
-#     end_retrieval = time.time()
+# Loop through each question
+for question in tqdm(questions):
+        
+    # Time the chain run process
+    start_chain = time.time()
+    result = chain.invoke(question)
+    end_chain = time.time()
     
-#     retrieval_time = end_retrieval - start_retrieval
-#     retrieval_time_list.append(retrieval_time)  # Store retrieval time
+    chain_time = end_chain - start_chain
+    chain_time_list.append(chain_time)  # Store chain run time
     
-#     # Time the chain run process
-#     start_chain = time.time()
-#     result = chain.run(input_documents=doc, question=question)
-#     end_chain = time.time()
-    
-#     chain_time = end_chain - start_chain
-#     chain_time_list.append(chain_time)  # Store chain run time
-    
-#     results.append(result)
+    results.append(result)
 
-# # Create a pandas DataFrame to store the results and times taken
-# df = pd.DataFrame({
-#     "Question": questions,
-#     "Answer": results,
-#     "Retrieval_Time": retrieval_time_list,
-#     "Chain_Time": chain_time_list
-# })
-# df.to_csv('Fusion_Mistral7B_evalset.csv', index=False)
+# Create a pandas DataFrame to store the results and times taken
+df = pd.DataFrame({
+    "Question": questions,
+    "Answer": results,
+    "Chain_Time": chain_time_list
+})
+df.to_csv('Fusion_Mistral7B.csv', index=False)
