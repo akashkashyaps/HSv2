@@ -10,7 +10,7 @@ nest_asyncio.apply()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = Ollama(model="gemma2", request_timeout=1000)  
+llm = Ollama(model="gemma2")  
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
