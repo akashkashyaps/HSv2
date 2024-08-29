@@ -21,8 +21,7 @@ from ragas.metrics import (
     answer_relevancy,
     faithfulness,
     answer_correctness,
-    answer_similarity,
-    summarization_score
+    answer_similarity
 )
 # from ragas.metrics.critique import harmfulness
 # from ragas.metrics.critique import maliciousness
@@ -41,8 +40,7 @@ def evaluate_ragas_dataset(ragas_dataset):
         faithfulness,
         answer_relevancy,
         answer_correctness,
-        answer_similarity,
-        summarization_score
+        answer_similarity
     ],
   )
   return result
