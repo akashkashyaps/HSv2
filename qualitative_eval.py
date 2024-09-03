@@ -42,7 +42,7 @@ def qualitative_analysis(ragas_dataset):
 
 
 
-evaluation_set = pd.read_csv("evaluation_set_FusionPhi3.csv")
+evaluation_set = pd.read_csv("evaluation_set_FusionMistral.csv")
 # Convert the context column to a list of strings
 evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
 evaluation_set.drop(columns=["contexts"], inplace=True)
@@ -54,4 +54,4 @@ dataset = Dataset.from_pandas(evaluation_set)
 
 
 qualitative_result_qwen = qualitative_analysis(dataset)
-qualitative_result_qwen.to_pandas().to_csv("Base_FusionPhi3-Evaluator_mistral-qualitative.csv", index=False)
+qualitative_result_qwen.to_pandas().to_csv("Base_FusionMistral-Evaluator_mistral-qualitative.csv", index=False)
