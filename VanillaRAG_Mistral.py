@@ -275,7 +275,7 @@ rag_chain = (
     | RunnableLambda(add_question_to_memory)
     | {
         "question_history": RunnableLambda(get_question_history),
-        "original_question": lambda x: x["question"]
+        "question": lambda x: x["question"]
     }
     | {
         "paraphrased_question": paraphrase_prompt | llm | StrOutputParser()
