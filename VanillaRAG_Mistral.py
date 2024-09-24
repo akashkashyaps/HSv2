@@ -275,20 +275,21 @@ rag_chain = (
     | RunnableLambda(add_question_to_memory)
     | {
         "question_history": RunnableLambda(get_question_history),
-        "question": lambda x: x["question"]
+        "original_question": lambda x: x["question"]
     }
-    | paraphrase_prompt
-    | llm
-    | StrOutputParser()
     | {
-        "question": RunnablePassthrough(),
-        "context": RunnableLambda(get_context)
+        "paraphrased_question": paraphrase_prompt | llm | StrOutputParser()
+    }
+    | {
+        "question": lambda x: x["paraphrased_question"],
+        "context": lambda x: get_context(x["paraphrased_question"])["context"]
     }
     | prompt
     | llm
     | StrOutputParser()
     | RunnableLambda(extract_answer_instance.run)
 )
+
 # from langchain.chains import LLMChain
 # rag_chain = LLMChain(llm=llm, prompt=prompt)
 from langchain_core.runnables import RunnableSequence
