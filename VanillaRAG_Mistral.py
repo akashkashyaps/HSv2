@@ -166,21 +166,62 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 
 # prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
+from langchain.prompts import PromptTemplate
+from langchain.schema import StrOutputParser
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from typing import List
+import re
 
-prompt_template = ("""
+class QuestionMemory:
+    def __init__(self, max_questions: int = 5):
+        self.questions: List[str] = []
+        self.max_questions = max_questions
+
+    def add_question(self, question: str):
+        self.questions.append(question)
+        if len(self.questions) > self.max_questions:
+            self.questions.pop(0)
+
+    def get_history(self) -> str:
+        return "\n".join(self.questions)
+
+question_memory = QuestionMemory()
+
+paraphrase_template = """Given the following question history and a new question, provide a paraphrased version of the new question that incorporates relevant context from the history. Output only the paraphrased question.
+
+Question History:
+{question_history}
+
+New Question: {question}
+
+Paraphrased Question:"""
+
+paraphrase_prompt = PromptTemplate.from_template(paraphrase_template)
+
+prompt_template = """
 [INST]
-
-For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history, recent conversations, and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
-
-Recent conversations:
-{chat_history}
-
+For the purposes of this conversation, you are a helpful agent present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. You will take on the persona of "AI Robin Hood", channeling the language and style of the legendary Robin Hood which is very important. A University Open Day is an event where future University students visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about the University which you will answer in the tone and style of Robin Hood, as he might have spoken. If you do not know the answer, just say that you cannot answer the question, and do not try to make up an answer. Please keep your answers brief, as this is a conversation taking place in real-time.
 CONTEXT: {context}
 QUESTION: {question}
 Helpful Answer: [/INST]
-""")
+"""
 
-prompt = PromptTemplate(template=prompt_template, input_variables=["memory", "context", "question"])
+prompt = PromptTemplate.from_template(prompt_template)
+
+# prompt_template = ("""
+# [INST]
+
+# For the purposes of this conversation, you are a helpful agent who is present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. A University Open Day is an event where future University students will visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about University which you will answer by using the helpful context at the end of this message. Note that it is very important that you are at Nottingham Trent University (NTU) in the United Kingdom and NOT Nanyang Technological University in Singapore. You will now be given context, history, recent conversations, and asked a question. Your task is to answer the question. If you do not know the answer, just say that you cannot answer the question, do not try to make up an answer.
+
+# Recent conversations:
+# {chat_history}
+
+# CONTEXT: {context}
+# QUESTION: {question}
+# Helpful Answer: [/INST]
+# """)
+
+# prompt = PromptTemplate(template=prompt_template, input_variables=["memory", "context", "question"])
 
 
 llm = HuggingFacePipeline(pipeline=generate_text)
@@ -200,50 +241,78 @@ class ExtractAnswer:
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 
-class ChatHistoryManager:
-    def __init__(self, history_limit=10):
-        self.history_limit = history_limit
-        self.chat_history = []
+# class ChatHistoryManager:
+#     def __init__(self, history_limit=10):
+#         self.history_limit = history_limit
+#         self.chat_history = []
 
-    def add_interaction(self, question, answer):
-        if len(self.chat_history) >= self.history_limit * 2:  # Each Q&A is 2 entries
-            self.chat_history = self.chat_history[2:]  # Remove the oldest Q&A pair
-        self.chat_history.append(f"Q: {question}")
-        self.chat_history.append(f"A: {answer}")
+#     def add_interaction(self, question, answer):
+#         if len(self.chat_history) >= self.history_limit * 2:  # Each Q&A is 2 entries
+#             self.chat_history = self.chat_history[2:]  # Remove the oldest Q&A pair
+#         self.chat_history.append(f"Q: {question}")
+#         self.chat_history.append(f"A: {answer}")
 
-    def get_chat_history(self):
-        return "\n".join(self.chat_history)
+#     def get_chat_history(self):
+#         return "\n".join(self.chat_history)
     
-    def clear_history(self):
-        self.chat_history = []
+#     def clear_history(self):
+#         self.chat_history = []
 
-# Initialize the chat history manager
-history_manager = ChatHistoryManager()
+# # Initialize the chat history manager
+# history_manager = ChatHistoryManager()
+def add_question_to_memory(inputs):
+    question_memory.add_question(inputs["question"])
+    return inputs
 
+def get_question_history(inputs):
+    return {"question_history": question_memory.get_history()}
+
+def get_context(inputs):
+    return {"context": retriever_vanilla.get_relevant_documents(inputs["question"])}
+
+rag_chain = (
+    RunnablePassthrough()
+    | RunnableLambda(add_question_to_memory)
+    | {
+        "question_history": RunnableLambda(get_question_history),
+        "question": lambda x: x["question"]
+    }
+    | paraphrase_prompt
+    | llm
+    | StrOutputParser()
+    | {
+        "question": RunnablePassthrough(),
+        "context": RunnableLambda(get_context)
+    }
+    | prompt
+    | llm
+    | StrOutputParser()
+    | RunnableLambda(extract_answer_instance.run)
+)
 # from langchain.chains import LLMChain
 # rag_chain = LLMChain(llm=llm, prompt=prompt)
 from langchain_core.runnables import RunnableSequence
 from langchain_core.output_parsers import StrOutputParser
-rag_chain = prompt | llm | StrOutputParser()
+# rag_chain = prompt | llm | StrOutputParser()
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
 from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics
 from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
 
 # Initialize the Prompt Injection scanner
-prompt_injection_scanner = PromptInjection(threshold=0.5, match_type=InputMatchType.FULL)
+prompt_injection_scanner = PromptInjection(threshold=0.92, match_type=InputMatchType.FULL)
 
 # Initialize the Toxicity scanner for inputs
-input_toxicity_scanner = InputToxicity(threshold=0.5, match_type=InputMatchType.SENTENCE)
+input_toxicity_scanner = InputToxicity(threshold=0.9, match_type=InputMatchType.SENTENCE)
 
 # Initialize the Toxicity scanner for outputs
-output_toxicity_scanner = OutputToxicity(threshold=0.5, match_type=OutputMatchType.SENTENCE)
+output_toxicity_scanner = OutputToxicity(threshold=0.9, match_type=OutputMatchType.SENTENCE)
 
 # Initialize the No Refusal scanner
-no_refusal_scanner = NoRefusal(threshold=0.5, match_type=OutputMatchType.FULL)
+no_refusal_scanner = NoRefusal(threshold=0.9, match_type=OutputMatchType.FULL)
 
 # Initialize the Ban Topics scanner
-ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.5)
+ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.75)
 
 def scan_input(prompt):
     # Scan for prompt injection
@@ -291,22 +360,15 @@ def get_rag_response(query):
 
     # Step 3: Retrieve context from vector store using sanitized query
     context = retriever_vanilla.get_relevant_documents(sanitized_query)
-    
-    # Step 4: Get chat history
-    chat_history = history_manager.get_chat_history()
 
     # Step 5: Generate a response using the RAG pipeline
-    result = rag_chain.invoke({"context": context, "chat_history": chat_history, "question": sanitized_query},config={"callbacks": [langfuse_handler]})
-    # Debug print to check the structure of the result
+    result = rag_chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})    # Debug print to check the structure of the result
     print("Debug - Result structure:", result)
     # Step 6: Extract the answer from the result
     answer = extract_answer_instance.run(result)
 
     # Step 7: Sanitize the output before returning
     sanitized_answer = scan_output(sanitized_query, answer)
-    
-    # Step 8: Store the sanitized Q&A pair in chat history
-    history_manager.add_interaction(sanitized_query, sanitized_answer)
     
     return sanitized_answer
 
@@ -332,9 +394,9 @@ def get_rag_response(query):
 
 # Test queries
 test_queries = [
-    "Can you tell me about the Games Development Laboratory at NTU?",  
-    "How does the it support students in their coursework?",  
-    "What other facilities are available at NTU that might complement the lab?",  
+    "I like games, is there a course for that?",  
+    "where can i get a job after?",  
+    "where did other students get?",  
 ]
 
 for query in test_queries:
