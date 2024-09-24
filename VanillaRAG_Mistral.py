@@ -270,11 +270,13 @@ def add_question_to_memory(inputs):
 def get_question_history(inputs):
     return {"question_history": question_memory.get_history()}
 
-def get_context(inputs):
-    return {"context": retriever_vanilla.get_relevant_documents(inputs["question"])}
+def get_context(query):
+    return {"context": retriever_vanilla.get_relevant_documents(query)}
 
-# Define your rag_chain
-rag_chain = (
+from langchain_core.runnables import RunnableLambda, RunnableSequence
+
+# Step 1: Define the Paraphrasing Chain
+paraphrasing_chain = (
     RunnablePassthrough()
     | RunnableLambda(add_question_to_memory)
     | {
@@ -283,24 +285,26 @@ rag_chain = (
     }
     | {
         "paraphrased_question": (
-            RunnableLambda(lambda x: paraphrase_template.format(
-                question_history=x["question_history"],
-                question=x["question"]
-            )) 
-            | llm 
-            | StrOutputParser() 
-            | RunnableLambda(extract_answer_instance.run)  # Extract the paraphrased question
+            paraphrase_template | llm | StrOutputParser() 
         )
     }
-    | {
-        "question": lambda x: x["paraphrased_question"],
-        "context": lambda x: get_context(x["paraphrased_question"])["context"]
-    }
-    | prompt
-    | llm
-    | StrOutputParser()
-    | RunnableLambda(extract_answer_instance.run)  # Extract the final answer
+    | RunnableLambda(extract_answer_instance.run)  # Extract the paraphrased question
 )
+
+# Step 2: Define the RAG Chain
+# rag_chain = (
+#     {
+#         "paraphrased_question": lambda x: x["paraphrased_question"],  # Ensure correct structure
+#         "context": lambda x: get_context(x["paraphrased_question"])["context"]  # Extract context
+#     }
+#     | prompt
+#     | llm
+#     | StrOutputParser()
+#     | RunnableLambda(extract_answer_instance.run)  # Extract the final answer
+# )
+rag_chain = prompt | llm | StrOutputParser()
+# Step 3: Combine the Chains
+full_chain = paraphrasing_chain | rag_chain
 
 # from langchain.chains import LLMChain
 # rag_chain = LLMChain(llm=llm, prompt=prompt)
