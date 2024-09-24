@@ -285,12 +285,11 @@ paraphrasing_chain = (
     }
     | {
         "paraphrased_question": (
-            paraphrase_template | llm | StrOutputParser() 
+        paraphrase_template | llm | StrOutputParser() 
         )
     }
-    | RunnableLambda(extract_answer_instance.run)  # Extract the paraphrased question
 )
-
+final_query = extract_answer_instance.run("paraphrased_question") 
 # Step 2: Define the RAG Chain
 # rag_chain = (
 #     {
@@ -367,9 +366,9 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
-def get_rag_response(query):
+def get_rag_response(final_query):
     # Step 1: Sanitize the input query
-    sanitized_query = scan_input(query)
+    sanitized_query = scan_input(final_query)
     
     # Step 2: Check if the sanitized query is valid
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
