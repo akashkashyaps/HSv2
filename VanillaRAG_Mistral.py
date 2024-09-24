@@ -187,14 +187,17 @@ class QuestionMemory:
 
 question_memory = QuestionMemory()
 
-paraphrase_template = """Given the following question history and a new question, provide a paraphrased version of the new question that incorporates relevant context from the history. Output only the paraphrased question.
+paraphrase_template = """
+[INST]
+You are an advanced AI assistant serving Nottingham Trent University's Computer Science Department with expertise in language understanding, context analysis, and question reformulation. Your task is to carefully examine the provided question history and a new question, then generate a paraphrased version of the new question that seamlessly incorporates relevant context from the history. Your paraphrasing should be clear, concise, and capture the essence of the original question while adding valuable context.
 
 Question History:
 {question_history}
 
 New Question: {question}
 
-Paraphrased Question:"""
+Paraphrased Question:[/INST]
+"""
 
 paraphrase_prompt = PromptTemplate.from_template(paraphrase_template)
 
@@ -270,6 +273,7 @@ def get_question_history(inputs):
 def get_context(inputs):
     return {"context": retriever_vanilla.get_relevant_documents(inputs["question"])}
 
+# Define your rag_chain
 rag_chain = (
     RunnablePassthrough()
     | RunnableLambda(add_question_to_memory)
@@ -278,7 +282,15 @@ rag_chain = (
         "question": lambda x: x["question"]
     }
     | {
-        "paraphrased_question": paraphrase_prompt | llm | StrOutputParser()
+        "paraphrased_question": (
+            RunnableLambda(lambda x: paraphrase_template.format(
+                question_history=x["question_history"],
+                question=x["question"]
+            )) 
+            | llm 
+            | StrOutputParser() 
+            | RunnableLambda(extract_answer_instance.run)  # Extract the paraphrased question
+        )
     }
     | {
         "question": lambda x: x["paraphrased_question"],
@@ -287,7 +299,7 @@ rag_chain = (
     | prompt
     | llm
     | StrOutputParser()
-    | RunnableLambda(extract_answer_instance.run)
+    | RunnableLambda(extract_answer_instance.run)  # Extract the final answer
 )
 
 # from langchain.chains import LLMChain
