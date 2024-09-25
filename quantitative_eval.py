@@ -96,7 +96,7 @@ def evaluate_ragas_dataset(ragas_dataset, llm, embeddings):
     return result
 
 # Load the evaluation dataset
-evaluation_set = pd.read_csv("evaluation_set_FusionLlama3.csv")
+evaluation_set = pd.read_csv("evaluation_set_FusionMistral.csv")
 evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
 evaluation_set.drop(columns=["contexts"], inplace=True)
 evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
@@ -105,7 +105,7 @@ evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
 dataset = Dataset.from_pandas(evaluation_set)
 
 # List of models to evaluate
-models = ["internlm2", "llama3", "qwen2", "gemma2", "phi3"]  
+models = ["internlm2", "llama3", "qwen2", "gemma2", "phi3", "mistral"]  
 
 # Loop through each model and run the evaluation
 for model_name in models:
@@ -119,7 +119,7 @@ for model_name in models:
     quantitative_result = evaluate_ragas_dataset(dataset, llm, ollama_emb)
     
     # Save the result to a CSV file with the model name in the file name
-    output_file = f"Base_FusionLlama3-Evaluator_{model_name}-quantitative.csv"
+    output_file = f"Base_FusionMistral-Evaluator_{model_name}-quantitative.csv"
     quantitative_result.to_pandas().to_csv(output_file, index=False)
     
     print(f"Completed evaluation for model: {model_name}")
