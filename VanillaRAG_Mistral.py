@@ -199,9 +199,9 @@ New Question: {question}
 Paraphrased Question:[/INST]
 """
 
-paraphrase_prompt = PromptTemplate.from_template(paraphrase_template)
+paraphrase_prompt = PromptTemplate(template=paraphrase_template, input_variables=["question_history", "question"])
 
-prompt_template = """
+rag_template = """
 [INST]
 For the purposes of this conversation, you are a helpful agent present at a University Open Day at Nottingham Trent University (NTU) at Clifton Campus, Nottingham, United Kingdom. You will take on the persona of "AI Robin Hood", channeling the language and style of the legendary Robin Hood which is very important. A University Open Day is an event where future University students visit to see the campus, facilities, and meet the teaching staff. The future students are going to ask you questions about the University which you will answer in the tone and style of Robin Hood, as he might have spoken. If you do not know the answer, just say that you cannot answer the question, and do not try to make up an answer. Please keep your answers brief, as this is a conversation taking place in real-time.
 CONTEXT: {context}
@@ -209,7 +209,7 @@ QUESTION: {question}
 Helpful Answer: [/INST]
 """
 
-prompt = PromptTemplate.from_template(prompt_template)
+prompt = PromptTemplate(template=rag_template, input_variables=["context", "question"])
 
 # prompt_template = ("""
 # [INST]
@@ -263,47 +263,10 @@ extract_answer_instance = ExtractAnswer()
 
 # # Initialize the chat history manager
 # history_manager = ChatHistoryManager()
-def add_question_to_memory(inputs):
-    question_memory.add_question(inputs["question"])
-    return inputs
+paraphrase_chain = paraphrase_prompt| llm |StrOutputParser()
 
-def get_question_history(inputs):
-    return {"question_history": question_memory.get_history()}
-
-def get_context(query):
-    return {"context": retriever_vanilla.get_relevant_documents(query)}
-
-from langchain_core.runnables import RunnableLambda, RunnableSequence
-
-# Step 1: Define the Paraphrasing Chain
-paraphrasing_chain = (
-    RunnablePassthrough()
-    | RunnableLambda(add_question_to_memory)
-    | {
-        "question_history": RunnableLambda(get_question_history),
-        "question": lambda x: x["question"]
-    }
-    | {
-        "paraphrased_question": (
-        paraphrase_template | llm | StrOutputParser() 
-        )
-    }
-)
-final_query = extract_answer_instance.run("paraphrased_question") 
-# Step 2: Define the RAG Chain
-# rag_chain = (
-#     {
-#         "paraphrased_question": lambda x: x["paraphrased_question"],  # Ensure correct structure
-#         "context": lambda x: get_context(x["paraphrased_question"])["context"]  # Extract context
-#     }
-#     | prompt
-#     | llm
-#     | StrOutputParser()
-#     | RunnableLambda(extract_answer_instance.run)  # Extract the final answer
-# )
 rag_chain = prompt | llm | StrOutputParser()
 # Step 3: Combine the Chains
-full_chain = paraphrasing_chain | rag_chain
 
 # from langchain.chains import LLMChain
 # rag_chain = LLMChain(llm=llm, prompt=prompt)
@@ -366,46 +329,65 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
-def get_rag_response(final_query):
+# def get_rag_response(final_query):
+#     # Step 1: Sanitize the input query
+#     sanitized_query = scan_input(final_query)
+    
+#     # Step 2: Check if the sanitized query is valid
+#     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
+#         return sanitized_query
+
+#     # Step 3: Retrieve context from vector store using sanitized query
+#     context = retriever_vanilla.get_relevant_documents(sanitized_query)
+
+#     # Step 5: Generate a response using the RAG pipeline
+#     result = rag_chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})    # Debug print to check the structure of the result
+#     print("Debug - Result structure:", result)
+#     # Step 6: Extract the answer from the result
+#     answer = extract_answer_instance.run(result)
+
+#     # Step 7: Sanitize the output before returning
+#     sanitized_answer = scan_output(sanitized_query, answer)
+    
+#     return sanitized_answer
+
+def get_rag_response(query):
     # Step 1: Sanitize the input query
-    sanitized_query = scan_input(final_query)
+    sanitized_query = scan_input(query)
     
     # Step 2: Check if the sanitized query is valid
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
 
-    # Step 3: Retrieve context from vector store using sanitized query
-    context = retriever_vanilla.get_relevant_documents(sanitized_query)
+    # Step 3: Get the question history from the memory
+    question_history = question_memory.get_history()
 
-    # Step 5: Generate a response using the RAG pipeline
-    result = rag_chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})    # Debug print to check the structure of the result
+    # Step 4: Paraphrase the sanitized query using question history
+    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history})
+    paraphrased_query = extract_answer_instance.run(paraphrased_output)
+
+    # Step 5: If paraphrasing fails, use the original sanitized query
+    if not paraphrased_query:
+        paraphrased_query = sanitized_query
+
+    # Step 6: Store the original (or paraphrased) query in the memory for future use
+    question_memory.add_question(sanitized_query)
+
+    # Step 7: Generate a response using the RAG pipeline with the paraphrased (or original) query
+    result = rag_chain.invoke({"question": paraphrased_query}, config={"callbacks": [langfuse_handler]})
+
+    # Step 8: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
-    # Step 6: Extract the answer from the result
+
+    # Step 9: Extract the answer from the result
     answer = extract_answer_instance.run(result)
 
-    # Step 7: Sanitize the output before returning
-    sanitized_answer = scan_output(sanitized_query, answer)
+    # Step 10: Sanitize the output before returning
+    sanitized_answer = scan_output(paraphrased_query, answer)
     
     return sanitized_answer
 
-# def extract_answer_chain(query):
-#     # Scan the input before processing
-#     sanitized_query = scan_input(query)
-    
-#     # If the query is invalid after scanning, return an appropriate response
-#     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
-#         return sanitized_query
-    
-#     # Process the sanitized query
-#     result = chain.invoke({"query": sanitized_query})
-    
-#     # Extract the answer from the result
-#     answer = extract_answer_instance.run(result['result'])
-    
-#     # Scan the output before returning
-#     sanitized_answer = scan_output(sanitized_query, answer)
-    
-#     return sanitized_answer
+
 
 
 # Test queries
