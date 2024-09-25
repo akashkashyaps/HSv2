@@ -377,7 +377,7 @@ def get_rag_response(query):
     context = retriever_vanilla.get_relevant_documents(paraphrased_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query}, config={"callbacks": [langfuse_handler]})
+    result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
