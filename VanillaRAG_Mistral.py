@@ -363,7 +363,7 @@ def get_rag_response(query):
     question_history = question_memory.get_history()
 
     # Step 4: Paraphrase the sanitized query using question history
-    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history})
+    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
     paraphrased_query = extract_answer_instance.run(paraphrased_output)
 
     # Step 5: If paraphrasing fails, use the original sanitized query
