@@ -373,16 +373,19 @@ def get_rag_response(query):
     # Step 6: Store the original (or paraphrased) query in the memory for future use
     question_memory.add_question(sanitized_query)
 
-    # Step 7: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query}, config={"callbacks": [langfuse_handler]})
+    # Step 7: Retrieve context from vector store using the paraphrased (or original) query
+    context = retriever_vanilla.get_relevant_documents(paraphrased_query)
 
-    # Step 8: Debug print to check the structure of the result
+    # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
+    result = rag_chain.invoke({"question": paraphrased_query}, {"context":context}, config={"callbacks": [langfuse_handler]})
+
+    # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
 
-    # Step 9: Extract the answer from the result
+    # Step 10: Extract the answer from the result
     answer = extract_answer_instance.run(result)
 
-    # Step 10: Sanitize the output before returning
+    # Step 11: Sanitize the output before returning
     sanitized_answer = scan_output(paraphrased_query, answer)
     
     return sanitized_answer
