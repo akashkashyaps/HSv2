@@ -436,9 +436,9 @@ def get_rag_response(query):
 # Test queries
 test_queries = [
     "who created you?",
-    "what are you",
-    "who is HOD",
-    "i want to become a software engineer what courses should i take",  
+    "tell me about robin hood",
+    "who is the head of the department",
+    "im new to nottingham, what do i do",  
 ]
 
 for query in test_queries:
