@@ -89,7 +89,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 
 from langchain_community.document_loaders import Docx2txtLoader
 
-loader = Docx2txtLoader("CS_OpenDay_General.docx")
+loader = Docx2txtLoader("CS_OpenDay_General_Updated.docx")
 
 loaded_documents = loader.load()
 
@@ -205,6 +205,7 @@ Guidelines:
    d. Ensure the question is self-contained and understandable without additional context.
    e. When applicable, include terms that might appear in the 'Source:' or 'Metadata:' fields of the documents.
    f. Frame questions to target information that could be contained within 300-character chunks.
+5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
 5. Do not introduce speculative information or assumptions.
 6. Generate only one refined question per input.
 
@@ -428,9 +429,10 @@ def get_rag_response(query):
 
 # Test queries
 test_queries = [
-    "I like games, is there a course for that?",  
-    "where can i get a job after?",  
-    "where did other students get?",  
+    "who created you?",
+    "what are you",
+    "who is HOD",
+    "i want to become a software engineer what courses should i take",  
 ]
 
 for query in test_queries:
