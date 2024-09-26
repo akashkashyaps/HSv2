@@ -145,7 +145,7 @@ recreated_splits
 vectorstore = Chroma.from_documents(
     recreated_splits,
     embeddings,
-    collection_name="CS_OpenDay",
+    collection_name="ROBIN-1",
     persist_directory="/home/akash/HSv2/vecdb"
 )
 
