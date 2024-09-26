@@ -205,9 +205,15 @@ Guidelines:
    d. Ensure the question is self-contained and understandable without additional context.
    e. When applicable, include terms that might appear in the 'Source:' or 'Metadata:' fields of the documents.
    f. Frame questions to target information that could be contained within 300-character chunks.
+   g. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
 5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
 5. Do not introduce speculative information or assumptions.
 6. Generate only one refined question per input.
+
+Examples to learn from:
+New Question: "Who is the HOD?"
+Refined Question for RAG: "Who is the Head of the Computer Science Department at Nottingham Trent University?"
+
 
 Question History:
 {question_history}
