@@ -1,6 +1,6 @@
 from typing import Union
 from fastapi import FastAPI, Query
-from RAG_for_app import get_rag_response
+from RAGFusion_Mistral import get_rag_response
 
 app = FastAPI()
 
