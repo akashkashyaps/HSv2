@@ -119,7 +119,7 @@ for document in loaded_documents:
     all_metadata.extend(metadata_list)
 
 # text splitter
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=2048, chunk_overlap=128) 
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1900, chunk_overlap=128) 
 # TODO: Check the chunk size and overlap
 
 # Split the loaded documents into chunks
@@ -302,9 +302,6 @@ input_toxicity_scanner = InputToxicity(threshold=0.9, match_type=InputMatchType.
 # Initialize the Toxicity scanner for outputs
 output_toxicity_scanner = OutputToxicity(threshold=0.9, match_type=OutputMatchType.SENTENCE)
 
-# Initialize the No Refusal scanner
-no_refusal_scanner = NoRefusal(threshold=0.9, match_type=OutputMatchType.FULL)
-
 # Initialize the Ban Topics scanner
 ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.75)
 
@@ -329,11 +326,6 @@ def scan_input(prompt):
 def scan_output(prompt, model_output):
     # Scan for output toxicity
     sanitized_output, is_valid, _ = output_toxicity_scanner.scan(prompt, model_output)
-    if not is_valid:
-        return "Sorry, I'm just an AI hologram, can I help you with something else."
-
-    # Scan for no refusal
-    sanitized_output, is_valid, _ = no_refusal_scanner.scan(prompt, sanitized_output)
     if not is_valid:
         return "Sorry, I'm just an AI hologram, can I help you with something else."
 
