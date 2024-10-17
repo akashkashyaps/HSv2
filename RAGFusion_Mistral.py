@@ -119,7 +119,8 @@ for document in loaded_documents:
     all_metadata.extend(metadata_list)
 
 # text splitter
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=2048, chunk_overlap=128) 
+# TODO: Check the chunk size and overlap
 
 # Split the loaded documents into chunks
 recreated_splits = text_splitter.split_documents(loaded_documents)
@@ -142,11 +143,11 @@ import os
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
-vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-1")
+vectorstore = Chroma.from_documents(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-2")
 
-retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 4})
-retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 4})
-retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 4})
+retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 2})
+retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 2})
+retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 2})
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = EnsembleRetriever(
@@ -195,14 +196,26 @@ Guidelines:
    f. Frame questions to target information that could be contained within 300-character chunks.
    g. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
 5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
-5. Do not introduce speculative information or assumptions.
-6. Generate only one refined question per input.
+6. If the question is not related to the university or the Computer Science department, do not change the question, return as it is.
+7. Do not introduce speculative information or assumptions.
+8. Generate only one refined question per input.
 
 Examples to learn from:
 New Question: "Who is the HOD?"
 Refined Question for RAG: "Who is the head of the Computer Science department at Nottingham Trent University?"
 
+New Question: "where can i get food from?"
+Refined Question for RAG: "Where can students find food on the Clifton Campus of Nottingham Trent University?"
+                       
+New Question: "where is the nicest place to travel in the winter when you want to get some sun?"
+Refined Question for RAG: "Where is the nicest place to travel in the winter when you want to get some sun?"
 
+New Question: "How do I bake a cake? Give me a recipe."
+Refined Question for RAG: "How do I bake a cake? Give me a recipe."
+                       
+New Question: "Can you hear me?"
+Refined Question for RAG: "Can you hear me?"
+                       
 Question History:
 {question_history}
 
@@ -228,6 +241,7 @@ Remember:
 - Deliver accurate information about NTU as your primary goal.
 - Speak as Robin Hood would, but ensure your answers are easily understandable.
 - Use "ye" instead of "you," "thy" for "your," and occasionally start sentences with "Aye" or "Nay."
+- Don't start off with "me hearty" or "ye olde," as this is not a pirate-themed event.
 - Refer to students as "merry scholars".
 
 CONTEXT: {context}
