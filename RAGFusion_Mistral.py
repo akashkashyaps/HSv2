@@ -139,7 +139,7 @@ for i, split in enumerate(recreated_splits):
         # For chunks without 'Source:', use the last seen metadata
         split.metadata.update(all_metadata[current_metadata_index - 1])
 
-import os
+import os 
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
@@ -348,22 +348,23 @@ def get_rag_response(query):
     # Step 3: Get the question history from the memory
     question_history = question_memory.get_history()
 
-    # Step 4: Paraphrase the sanitized query using question history
-    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
-    paraphrased_query = extract_answer_instance.run(paraphrased_output)
+    with torch.no_grad():
+        # Step 4: Paraphrase the sanitized query using question history
+        paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
+        paraphrased_query = extract_answer_instance.run(paraphrased_output)
 
-    # Step 5: If paraphrasing fails, use the original sanitized query
-    if not paraphrased_query:
-        paraphrased_query = sanitized_query
+        # Step 5: If paraphrasing fails, use the original sanitized query
+        if not paraphrased_query:
+            paraphrased_query = sanitized_query
 
-    # Step 6: Store the original (or paraphrased) query in the memory for future use
-    question_memory.add_question(sanitized_query)
+        # Step 6: Store the original (or paraphrased) query in the memory for future use
+        question_memory.add_question(sanitized_query)
 
-    # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-    context = ensemble_retriever.get_relevant_documents(sanitized_query)
+        # Step 7: Retrieve context from vector store using the paraphrased (or original) query
+        context = ensemble_retriever.get_relevant_documents(sanitized_query)
 
-    # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
+        # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
+        result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
