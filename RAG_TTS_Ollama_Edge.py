@@ -69,6 +69,7 @@ for i, split in enumerate(recreated_splits):
         split.metadata.update(all_metadata[current_metadata_index - 1])
 
 import os 
+import re
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
@@ -103,6 +104,18 @@ class QuestionMemory:
 # Initialize question memory
 question_memory = QuestionMemory()
 
+class ExtractAnswer:
+    def run(self, text):
+        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
+        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
+        if match:
+            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+            return answer
+        else:
+            return None
+
+# Define an instance of ExtractAnswer
+extract_answer_instance = ExtractAnswer()
 class OllamaRAG:
     def __init__(self, retriever,llm):
         self.retriever = retriever 
@@ -131,7 +144,8 @@ class OllamaRAG:
             stream=False
         )
         
-        return response['text'].strip()
+        paraphrased_question = extract_answer_instance.run(response['response'])
+        return paraphrased_question
 
     def generate_answer(self, context, question):
         """Generate the answer using a specific RAG prompt template."""
@@ -157,7 +171,8 @@ class OllamaRAG:
             stream=False
         )
         
-        return response['text'].strip()
+        answer = extract_answer_instance.run(response['response'])
+        return answer
 
     def run_rag(self, question):
         """Main function to paraphrase the question, retrieve documents, and generate an answer."""
