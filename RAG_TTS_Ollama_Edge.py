@@ -145,10 +145,12 @@ class OllamaRAG:
         """
         
         paraphraser = ChatPromptTemplate.from_template(paraphrase_prompt)
+        # Extract the template string
+        para_string = paraphraser.template
 
         response = Ollama(
-            model=llm,
-            template=paraphraser
+            model="mistral",
+            template=para_string
         )
         
         return response['response'].strip()
@@ -172,10 +174,11 @@ class OllamaRAG:
         """
 
         rag = ChatPromptTemplate.from_template(answer_prompt)
+        rag_string = rag.template
 
         response = Ollama(
             model="mistral",
-            template=rag
+            template=rag_string
         )
         
         return response['response'].strip()
