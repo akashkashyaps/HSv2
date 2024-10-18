@@ -1,4 +1,6 @@
-import ollama
+from langchain_community.llms import Ollama  
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain.prompts import ChatPromptTemplate
 from chromadb import Client
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
@@ -12,9 +14,13 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = ollama.chat(model="mistral")  
+# Check if CUDA is available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
 
-embeddings = ollama.embeddings(
+llm = Ollama(model="mistral")  
+
+embeddings = OllamaEmbeddings(
     model="nomic-embed-text",
 )  
 
@@ -137,11 +143,12 @@ class OllamaRAG:
         Refined Question for RAG:
         [/INST]
         """
+        
+        paraphraser = ChatPromptTemplate.from_template(paraphrase_prompt)
 
-        response = ollama.generate(
-            model="mistral",
-            prompt=paraphrase_prompt,
-            stream=False
+        response = Ollama(
+            model=llm,
+            template=paraphraser
         )
         
         return response['response'].strip()
@@ -164,10 +171,11 @@ class OllamaRAG:
         AI Robin Hood's Answer: [/INST]
         """
 
-        response = ollama.generate(
-            model="mistral",
-            prompt=answer_prompt,
-            stream=False
+        rag = ChatPromptTemplate.from_template(answer_prompt)
+
+        response = Ollama(
+            model=llm,
+            template=rag
         )
         
         return response['response'].strip()
