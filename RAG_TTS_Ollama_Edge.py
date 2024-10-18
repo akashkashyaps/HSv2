@@ -131,7 +131,7 @@ class OllamaRAG:
     def paraphrase_question(self, new_question):
         """Paraphrase the user's question using the provided paraphrase prompt template."""
         question_history = self.question_memory.get_history()
-        paraphrase_prompt = f"""
+        paraphrase_prompt = """
         [INST]
         You are an advanced AI assistant for Nottingham Trent University's Computer Science Department, specializing in generating optimal questions for a Retrieval-Augmented Generation (RAG) system.This RAG system is called ROBIN. Your task is to analyze the question history and the new question, then produce a refined version that maximizes relevance for semantic search, keyword search, and BM25 ranking, while aligning with the specific data structure used.
 
@@ -155,7 +155,7 @@ class OllamaRAG:
 
     def generate_answer(self, context, question):
         """Generate the answer using a specific RAG prompt template."""
-        answer_prompt = f"""
+        answer_prompt = """
         [INST]
         You are "AI Robin Hood," an assistant at Nottingham Trent University's (NTU) Open Day at Clifton Campus, Nottingham, UK.
 
@@ -174,7 +174,7 @@ class OllamaRAG:
         rag = ChatPromptTemplate.from_template(answer_prompt)
 
         response = Ollama(
-            model=llm,
+            model="mistral",
             template=rag
         )
         
