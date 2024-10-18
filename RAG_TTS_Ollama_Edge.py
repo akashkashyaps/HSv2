@@ -126,7 +126,7 @@ class OllamaRAG:
         """
 
         response = ollama.generate(
-            model=self.llm,
+            model="mistral",
             prompt=paraphrase_prompt,
             stream=False
         )
