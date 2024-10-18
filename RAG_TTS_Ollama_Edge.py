@@ -117,8 +117,8 @@ class ExtractAnswer:
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
 class OllamaRAG:
-    def __init__(self, retriever,llm):
-        self.retriever = retriever 
+    def __init__(self, ensemble_retriever,llm):
+        self.retriever = ensemble_retriever
         self.question_memory = question_memory
         self.llm = llm
 
@@ -172,23 +172,20 @@ class OllamaRAG:
         
         return response['response'].strip()
 
-    def run_rag(self, question):
-        """Main function to paraphrase the question, retrieve documents, and generate an answer."""
-        # Step 1: Paraphrase the question using history
+    def run_rag(self, question: str):
         paraphrased_question = self.paraphrase_question(question)
         print(f"Paraphrased Question: {paraphrased_question}")
 
-        # Step 2: Retrieve documents using the paraphrased question
-        retrieved_docs = self.retriever.invoke(paraphrased_question)
-        print(f"Retrieved Documents: {retrieved_docs}")
+        # Ensure you're passing only the string query to the retriever
+        if isinstance(paraphrased_question, str):
+            retrieved_docs = ensemble_retriever.get_relevant_documents(paraphrased_question)
+        else:
+            raise ValueError("Paraphrased question is not a string")
 
-        # Step 3: Generate answer using the retrieved context and paraphrased question
-        final_answer = self.generate_answer(retrieved_docs, paraphrased_question)
-
-        # Step 4: Add the current question to the history
-        self.question_memory.add_question(question)
-
+        # Use retrieved documents to generate the final answer
+        final_answer = self.generate_answer(paraphrased_question, retrieved_docs)
         return final_answer
+
 
 # Example usage:
 # Assuming retriever is an instance of a vectorstore retriever with a .invoke() method
