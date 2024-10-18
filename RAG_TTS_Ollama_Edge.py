@@ -144,8 +144,7 @@ class OllamaRAG:
             stream=False
         )
         
-        paraphrased_question = extract_answer_instance.run(response['response'])
-        return paraphrased_question
+        return response['response'].strip()
 
     def generate_answer(self, context, question):
         """Generate the answer using a specific RAG prompt template."""
@@ -171,8 +170,7 @@ class OllamaRAG:
             stream=False
         )
         
-        answer = extract_answer_instance.run(response['response'])
-        return answer
+        return response['response'].strip()
 
     def run_rag(self, question):
         """Main function to paraphrase the question, retrieve documents, and generate an answer."""
