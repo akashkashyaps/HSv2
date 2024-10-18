@@ -72,12 +72,7 @@ import os
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
-vectorstore = Chroma.from_documents(
-    recreated_splits,
-    embeddings,
-    collection_name="ROBIN-2",
-    persist_directory=persist_directory
-)
+vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-2")
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 2})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 2})
