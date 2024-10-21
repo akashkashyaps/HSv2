@@ -210,7 +210,7 @@ import re
 class ExtractAnswer:
     def run(self, text):
         """Extracts text after ':' and before '<|end_header_id|>'."""
-        match = re.search(r': "(.*?)" <\|end_header_id\|>', self.text)
+        match = re.search(r': "(.*?)" <\|end_header_id\|>', text)
         if match:
             return match.group(1).replace('"', '')  # Remove double quotes
         return None
