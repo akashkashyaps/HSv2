@@ -1,18 +1,11 @@
 # Import dependancies
 import torch
-import transformers
-import pandas as pd
-import numpy as np
-from torch import cuda, bfloat16
-from langchain_huggingface import HuggingFacePipeline
-from langchain.embeddings import HuggingFaceEmbeddings
+from torch import cuda
 from langchain.vectorstores import Chroma
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from langchain.prompts import PromptTemplate
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.llms import Ollama  
+from langchain_text_splitters import RecursiveCharacterTextSplitter 
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_groq import ChatGroq
 
