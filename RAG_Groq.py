@@ -106,22 +106,56 @@ ensemble_retriever = EnsembleRetriever(
 
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
-from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+import time
 from typing import List
-import re
+from threading import Timer
 
 class QuestionMemory:
-    def __init__(self, max_questions: int = 5):
+    def __init__(self, max_questions: int = 5, clear_interval: int = 600):  # 600 seconds = 10 minutes
         self.questions: List[str] = []
         self.max_questions = max_questions
+        self.clear_interval = clear_interval
+        self.start_time = time.time()
+        # Start the auto-clear timer
+        self._schedule_clear()
+
+    def _schedule_clear(self):
+        """Schedule the next memory clear"""
+        timer = Timer(self.clear_interval, self._clear_memory)
+        timer.daemon = True  # Make sure timer doesn't prevent program exit
+        timer.start()
+
+    def _clear_memory(self):
+        """Clear the memory and reschedule next clear"""
+        self.questions.clear()
+        print(f"Memory cleared at: {time.strftime('%H:%M:%S')}")
+        self._schedule_clear()
 
     def add_question(self, question: str):
+        """Add a question to memory"""
+        # Check if it's time to clear (backup check in case timer failed)
+        current_time = time.time()
+        if current_time - self.start_time >= self.clear_interval:
+            self._clear_memory()
+            self.start_time = current_time
+
         self.questions.append(question)
         if len(self.questions) > self.max_questions:
             self.questions.pop(0)
 
     def get_history(self) -> str:
+        """Get the current question history"""
         return "\n".join(self.questions)
+
+    def __del__(self):
+        """Cleanup method to ensure timer is cancelled if object is destroyed"""
+        try:
+            for timer in Timer.threads:
+                if timer.is_alive():
+                    timer.cancel()
+        except:
+            pass
+
 
 question_memory = QuestionMemory()
 
@@ -304,6 +338,24 @@ def scan_output(prompt, model_output):
 
     return sanitized_output
 
+def is_valid_response(query):
+    """
+    Check if the query is valid for storing in history.
+    Returns False if query contains any variation of rejection phrases.
+    """
+    rejection_phrases = [
+        "i cannot",
+        "i can not",
+        "cannot",
+        "can not",
+        "i do not",
+        "i don't",
+        "don't have",
+        "do not have"
+    ]
+    query_lower = query.lower().strip()
+    return not any(phrase in query_lower for phrase in rejection_phrases)
+
 def groq_response(query):
     # Step 1: Sanitize the input query
     sanitized_query = scan_input(query)
@@ -311,40 +363,52 @@ def groq_response(query):
     # Step 2: Check if the sanitized query is valid
     if sanitized_query == "Sorry, I'm just an AI hologram, can I help you with something else.":
         return sanitized_query
-
+    
     # Step 3: Get the question history from the memory
     question_history = question_memory.get_history()
-
     
     # Step 4: Paraphrase the sanitized query using question history
-    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
+    paraphrased_output = paraphrase_chain.invoke(
+        {
+            "question": sanitized_query, 
+            "question_history": question_history
+        }, 
+        config={"callbacks": [langfuse_handler]}
+    )
     print("Paraphrased output:", paraphrased_output)
     paraphrased_query = extract_answer_instance.run(paraphrased_output)
     print("Paraphrased query:", paraphrased_query)
-
+    
     # Step 5: If paraphrasing fails, use the original sanitized query
     if not paraphrased_query:
         paraphrased_query = sanitized_query
-
-    # Step 6: Store the original (or paraphrased) query in the memory for future use
-    question_memory.add_question(sanitized_query)
-
-    # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-    context = ensemble_retriever.invoke(sanitized_query)
-
-    # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
-
-    # Step 9: Debug print to check the structure of the result
-    print("Debug - Result structure:", result)
-
-    # Step 10: Extract the answer from the result
-    answer = extract_answer_instance.run(result)
-
-    # Step 11: Sanitize the output before returning
-    sanitized_answer = scan_output(paraphrased_query, answer)
     
+    # Step 6: Only store valid queries in history
+    if is_valid_response(paraphrased_query):
+        question_memory.add_question(sanitized_query)
+    
+    # Step 7: Retrieve context from vector store
+    context = ensemble_retriever.invoke(sanitized_query)
+    
+    # Step 8: Generate response using the RAG pipeline
+    result = rag_chain.invoke(
+        {
+            "question": paraphrased_query, 
+            "context": context
+        }, 
+        config={"callbacks": [langfuse_handler]}
+    )
+    
+    # Step 9: Debug print
+    print("Debug - Result structure:", result)
+    
+    # Step 10: Extract the answer
+    answer = extract_answer_instance.run(result)
+    
+    # Step 11: Sanitize and return the output
+    sanitized_answer = scan_output(paraphrased_query, answer)
     return sanitized_answer
+
 
 if __name__ == "__main__":
     print(groq_response("What is the history of Nottingham Trent University?"))
