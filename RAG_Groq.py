@@ -208,15 +208,13 @@ prompt = PromptTemplate(template=rag_template, input_variables=["context", "ques
 import re
 
 class ExtractAnswer:
-    def __init__(self, text):
-        self.text = text
-    
-    def extract_text(self):
+    def run(self, text):
         """Extracts text after ':' and before '<|end_header_id|>'."""
         match = re.search(r': "(.*?)" <\|end_header_id\|>', self.text)
         if match:
             return match.group(1).replace('"', '')  # Remove double quotes
         return None
+        
 
 
 # Define an instance of ExtractAnswer
