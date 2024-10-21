@@ -10,6 +10,17 @@ from langchain_community.embeddings import OllamaEmbeddings
 from langchain_groq import ChatGroq
 from pydantic import BaseModel
 
+LANGFUSE_SECRET_KEY = "sk-lf-..."
+LANGFUSE_PUBLIC_KEY = "pk-lf-..."
+LANGFUSE_HOST = "https://cloud.langfuse.com"
+
+from langfuse.callback import CallbackHandler
+langfuse_handler = CallbackHandler(
+    public_key="pk-lf-7891f375-f1da-47ff-94a9-0a715b95012c",
+    secret_key="sk-lf-033efc71-3409-4e9f-9670-713e9a6889a1",
+    host="https://cloud.langfuse.com"
+)
+
 llm = ChatGroq(
     model="llama3-8b-8192",
     temperature=0.1,
@@ -288,7 +299,7 @@ def groq_response(query):
 
     
     # Step 4: Paraphrase the sanitized query using question history
-    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history})
+    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
     print("Paraphrased output:", paraphrased_output)
     paraphrased_query = extract_answer_instance.run(paraphrased_output)
     print("Paraphrased query:", paraphrased_query)
@@ -304,7 +315,7 @@ def groq_response(query):
     context = ensemble_retriever.get_relevant_documents(sanitized_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query, "context": context})
+    result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
