@@ -1,13 +1,14 @@
 # Import dependancies
 import torch
 from torch import cuda
-from langchain.vectorstores import Chroma
+from langchain_community.vectorstores import Chroma
 from langchain.prompts import PromptTemplate
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter 
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_groq import ChatGroq
+from pydantic import BaseModel
 
 llm = ChatGroq(
     model="mixtral-8x7b-32768",
@@ -18,10 +19,6 @@ llm = ChatGroq(
     stop = '[/INST]'
 )
 device = f'cuda:{cuda.current_device()}' if cuda.is_available() else 'cpu'
-
-
-# Set the model to evaluation mode
-llm.eval()
 
 embeddings = OllamaEmbeddings(
     model="nomic-embed-text",
