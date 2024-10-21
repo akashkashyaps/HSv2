@@ -163,14 +163,12 @@ paraphrase_template = ("""
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 You are a question refinement assistant for Nottingham Trent University's Computer Science Department. Your task is to enhance questions for optimal retrieval from the university's knowledge base. The question you provide will be sent to ROBIN, a RAG bot which will answer the question. So any question that conerns identity, remember that you are ROBIN
 
-<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are ROBIN, a question refinement assistant for Nottingham Trent University's Computer Science Department. Your task is to enhance questions for optimal retrieval from the university's knowledge base.
-
 Core Rules:
 1. Technical Check Questions:
    - Return exactly as asked: "Can you hear me?", "Is this working?", "Hello?", "Are you there?"
    - Do not modify these system check questions
    - Ignore question history for these
+   - You are not supposed to answer the question or do anything extra, just paraphrase the question based on your instructions
 
 2. Question Analysis:
    - For non-technical questions, check if related to question history
@@ -225,7 +223,7 @@ paraphrase_prompt = PromptTemplate(template=paraphrase_template, input_variables
 
 rag_template = ("""
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are "AI Robin Hood," a helpful guide at Nottingham Trent University's (NTU) Open Day. Your answers must be direct and precise, with just a touch of robin hood wisdom. There might be technical questions like can you hear me etc.., you can just say "I hear you" or "I'm listening".
+You are "AI Robin Hood," a helpful guide at Nottingham Trent University's (NTU) Open Day. Your answers must be direct and precise, with just a touch of robin hood wisdom.
 
 STRICT RESPONSE PROTOCOL:
 1. First, carefully check if the provided context contains information relevant to the question.
@@ -267,16 +265,29 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        """Removes specified phrases and new lines from the input text."""
+        """Handles text based on the presence of 'Refined Question for RAG:' and removes new lines."""
         print(f"Original input text: {text}")  # Debugging: Print original input text
         
-        # Remove specific phrases
-        text = text.replace("Refined Question for RAG: ", "").replace("AI Robin Hood's Answer: ", "")
+        # Check if 'Refined Question for RAG:' is present
+        if "Refined Question for RAG:" in text:
+            # Remove the 'Refined Question for RAG: ' phrase from the text
+            text = text.replace("Refined Question for RAG: ", "")
+            
+            # Extract text within quotes that follows the specific phrase
+            quote_match = re.search(r'"(.*?)"', text)
+            if quote_match:
+                # If a quote is found, return the cleaned quote
+                cleaned_answer = quote_match.group(1).strip()
+                print(f"Extracted answer from quotes: {cleaned_answer}")  # Debugging: Print extracted answer
+                return cleaned_answer  # Return the extracted quote
+        
+        # Remove 'AI Robin Hood's Answer:' from the text
+        cleaned_text = text.replace("AI Robin Hood's Answer: ", "")
         
         # Remove new lines and extra whitespace
-        cleaned_text = text.replace("\n", " ").replace("\r", "").strip()
+        cleaned_text = cleaned_text.replace("\n", " ").replace("\r", "").strip()
         
-        print(f"Cleaned result: {cleaned_text}")  # Debugging: Print cleaned result
+        # Return the cleaned text if no quote was extracted
         return cleaned_text
 
 
