@@ -127,51 +127,47 @@ question_memory = QuestionMemory()
 
 paraphrase_template = ("""
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are an advanced AI assistant for Nottingham Trent University's Computer Science Department, specializing in generating optimal questions for a Retrieval-Augmented Generation (RAG) system.This RAG system is called ROBIN. Your task is to analyze the question history and the new question, then produce a refined version that maximizes relevance for semantic search, keyword search, and BM25 ranking, while aligning with the specific data structure used.
+You are a question refinement assistant for Nottingham Trent University's Computer Science Department. Your task is to enhance questions for optimal retrieval from the university's knowledge base. The question you provide will be sent to ROBIN, a RAG bot which will answer the question. So any question that conerns identity, remember that you are ROBIN
 
-Guidelines:
-1. Assess if the new question is related to the question history.
-2. For related questions:
-   a. Incorporate crucial context from the history.
-   b. Maintain the core intent of the new question.
-3. For unrelated questions:
-   a. Focus on enhancing the question for search relevance without adding historical context.
-4. In all cases:
-   a. Use specific, descriptive terms that align with potential content and metadata in the database.
-   b. Include full entity names and relevant abbreviations (e.g., "Nottingham Trent University (NTU)").
-   c. Structure the question to support both semantic understanding and keyword matching.
-   d. Ensure the question is self-contained and understandable without additional context.
-   e. When applicable, include terms that might appear in the 'Source:' or 'Metadata:' fields of the documents.
-   f. Frame questions to target information that could be contained within 300-character chunks.
-   g. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
-5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
-6. If the question is not related to the university or the Computer Science department, do not change the question, return as it is.
-7. Do not introduce speculative information or assumptions.
-8. Generate only one refined question per input.
-9. Just give the question, do not provide any explanation or context.
+Core Rules:
+1. For university-related questions:
+   - Add "Nottingham Trent University" and "Computer Science Department" context
+   - Include relevant abbreviations (NTU, CS)
+   - Use academic terms common in university documents
+   - Target student-relevant information
 
-Examples to learn from:
+2. Keep these questions unchanged:
+   - Non-university topics
+   - General knowledge questions
+   - Personal queries
+   - Technical checks (like "Can you hear me?")
+
+3. Question Requirements:
+   - Keep under 300 characters
+   - Include common synonyms
+   - Use full entity names
+   - Make self-contained
+
+Examples:
 New Question: "Who is the HOD?"
 Refined Question for RAG: "Who is the head of the Computer Science department at Nottingham Trent University?"
 
 New Question: "where can i get food from?"
 Refined Question for RAG: "Where can students find food on the Clifton Campus of Nottingham Trent University?"
-                       
+
 New Question: "where is the nicest place to travel in the winter when you want to get some sun?"
 Refined Question for RAG: "Where is the nicest place to travel in the winter when you want to get some sun?"
 
 New Question: "How do I bake a cake? Give me a recipe."
 Refined Question for RAG: "How do I bake a cake? Give me a recipe."
-                       
+
 New Question: "Can you hear me?"
 Refined Question for RAG: "Can you hear me?"
-<|eot_id|><|start_header_id|>user<|end_header_id|>  
-                                            
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+
 Question History:
 {question_history}
-
 New Question: {question}<|eot_id|><|start_header_id|>
-
 Refined Question for RAG: <|end_header_id|>
 """)
 
@@ -312,7 +308,7 @@ def groq_response(query):
     question_memory.add_question(sanitized_query)
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-    context = ensemble_retriever.get_relevant_documents(sanitized_query)
+    context = ensemble_retriever.invoke(sanitized_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
     result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
@@ -324,7 +320,7 @@ def groq_response(query):
     answer = extract_answer_instance.run(result)
 
     # Step 11: Sanitize the output before returning
-    sanitized_answer = scan_output(paraphrased_query, result)
+    sanitized_answer = scan_output(paraphrased_query, answer)
     
     return sanitized_answer
 
