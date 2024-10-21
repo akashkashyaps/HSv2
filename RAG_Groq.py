@@ -204,20 +204,22 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        """Extracts text from double quotes or returns the input text itself if no match is found."""
+        """Extracts text from double quotes or returns the input text itself if no match is found, with new lines removed."""
         print(f"Input text: {text}")  # Debugging: Print input text
 
         # Attempt to find text within double quotes
         quote_match = re.search(r'"(.*?)"', text)
 
         if quote_match:
-            # If text is found in quotes, return it
+            # If text is found in quotes, return it after cleaning
             answer = quote_match.group(1).strip().replace("\n", " ").replace("\r", "")
             print(f"Extracted answer from quotes: {answer}")  # Debugging: Print extracted answer
             return answer 
         else:
-            print("No quoted text found, returning input text.")  # Debugging: No match case
-            return text  # Return the original input text if no match is found
+            # Clean the input text by replacing new lines and carriage returns
+            cleaned_text = text.replace("\n", " ").replace("\r", "")
+            print("No quoted text found, returning cleaned input text.")  # Debugging: No match case
+            return cleaned_text  # Return the cleaned input text if no match is found
 
 
 
