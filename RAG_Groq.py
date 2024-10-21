@@ -207,13 +207,13 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
-        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
+        match = re.search(r'"(.*)"', text, re.DOTALL)
         if match:
             answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
             return answer
         else:
-            return None
+            return text.strip()
+
 
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
