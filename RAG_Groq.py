@@ -215,13 +215,6 @@ class ExtractAnswer:
             answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("|>", "")
             return  answer
         
-        # Fallback to extract answer from quotes if context extraction fails
-        match = re.search(r'"(.*)"', text, re.DOTALL)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-            return None, answer  # Return None for context if not found
-        else:
-            return None, text.strip()  # Return None for context and the stripped text
 
 
 # Define an instance of ExtractAnswer
