@@ -207,7 +207,8 @@ class ExtractAnswer:
         """Extracts text after ':' and before '<|end_header_id|>'."""
         match = re.search(r': "(.*?)" <\|end_header_id\|>', text)
         if match:
-            return match.group(1).replace('"', '')  # Remove double quotes
+            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "").replace("|>", "").replace("<|end_header_id|>", "").replace("<|", "")
+            return answer 
         else:
             return None
         
