@@ -283,23 +283,25 @@ def groq_response(query):
     # Step 3: Get the question history from the memory
     question_history = question_memory.get_history()
 
-    with torch.no_grad():
-        # Step 4: Paraphrase the sanitized query using question history
-        paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history})
-        paraphrased_query = extract_answer_instance.run(paraphrased_output)
+    
+    # Step 4: Paraphrase the sanitized query using question history
+    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history})
+    print("Paraphrased output:", paraphrased_output)
+    paraphrased_query = extract_answer_instance.run(paraphrased_output)
+    print("Paraphrased query:", paraphrased_query)
 
-        # Step 5: If paraphrasing fails, use the original sanitized query
-        if not paraphrased_query:
-            paraphrased_query = sanitized_query
+    # Step 5: If paraphrasing fails, use the original sanitized query
+    if not paraphrased_query:
+        paraphrased_query = sanitized_query
 
-        # Step 6: Store the original (or paraphrased) query in the memory for future use
-        question_memory.add_question(sanitized_query)
+    # Step 6: Store the original (or paraphrased) query in the memory for future use
+    question_memory.add_question(sanitized_query)
 
-        # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-        context = ensemble_retriever.get_relevant_documents(sanitized_query)
+    # Step 7: Retrieve context from vector store using the paraphrased (or original) query
+    context = ensemble_retriever.get_relevant_documents(sanitized_query)
 
-        # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-        result = rag_chain.invoke({"question": paraphrased_query, "context": context})
+    # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
+    result = rag_chain.invoke({"question": paraphrased_query, "context": context})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
