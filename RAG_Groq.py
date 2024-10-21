@@ -204,22 +204,21 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        """Extracts text after ':' and before '<|end_header_id|>' or any text within double quotes."""
+        """Extracts text from double quotes or returns the input text itself if no match is found."""
         print(f"Input text: {text}")  # Debugging: Print input text
 
-        # Adjusted regex pattern to match both quoted text and text without quotes
-        match = re.search(r':\s*"(.*?)"\s*<\|end_header_id\|>|:\s*(.*?)\s*<\|end_header_id\|>', text)
-        
-        if match:
-            # Check which group matched (group 1 for quoted, group 2 for unquoted)
-            answer = match.group(1) if match.group(1) else match.group(2)
-            if answer:
-                answer = answer.strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "").replace("|>", "").replace("<|end_header_id|>", "").replace("<|", "")
-                print(f"Extracted answer: {answer}")  # Debugging: Print extracted answer
-                return answer 
+        # Attempt to find text within double quotes
+        quote_match = re.search(r'"(.*?)"', text)
+
+        if quote_match:
+            # If text is found in quotes, return it
+            answer = quote_match.group(1).strip().replace("\n", " ").replace("\r", "")
+            print(f"Extracted answer from quotes: {answer}")  # Debugging: Print extracted answer
+            return answer 
         else:
-            print("No match found.")  # Debugging: No match case
-            return None
+            print("No quoted text found, returning input text.")  # Debugging: No match case
+            return text  # Return the original input text if no match is found
+
 
 
 # Define an instance of ExtractAnswer
