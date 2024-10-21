@@ -209,11 +209,18 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        # Use regex to extract context and answer
-        match = re.search(r'QUESTION:(.*?)end_header_id(.*)$', text, re.DOTALL)
+        # Check for CONTEXT and QUESTION headers
+        match = re.search(r'end_header_id(.*)$', text, re.DOTALL)
         if match:
-            answer = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("|>", "")
-            return  answer
+            answer_text = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("|>", "")
+            # Extract only the text within double quotes from the answer
+            answer_match = re.search(r'"(.*?)"', answer_text)
+            if answer_match:
+                answer = answer_match.group(1).strip()  # Get the text inside quotes
+                return answer
+            
+        # Return None if no valid context or answer found
+        return None
         
 
 
