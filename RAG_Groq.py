@@ -81,8 +81,7 @@ import os
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
-vectorstore = Chroma.from_documents(
-    recreated_splits,
+vectorstore = Chroma(
     embeddings,
     collection_name="ROBIN-3",
     persist_directory=persist_directory
