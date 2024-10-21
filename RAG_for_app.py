@@ -90,7 +90,7 @@ embeddings = HuggingFaceEmbeddings(model_name=model_name, model_kwargs=model_kwa
 
 from langchain_community.document_loaders import Docx2txtLoader
 
-loader = Docx2txtLoader("CS_OpenDay_General.docx")
+loader = Docx2txtLoader("CS_OpenDay_General_Updated.docx")
 
 loaded_documents = loader.load()
 
@@ -216,19 +216,19 @@ from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, Ban
 from llm_guard.output_scanners.toxicity import MatchType as OutputMatchType
 
 # Initialize the Prompt Injection scanner
-prompt_injection_scanner = PromptInjection(threshold=0.5, match_type=InputMatchType.FULL)
+prompt_injection_scanner = PromptInjection(threshold=0.92, match_type=InputMatchType.FULL)
 
 # Initialize the Toxicity scanner for inputs
-input_toxicity_scanner = InputToxicity(threshold=0.5, match_type=InputMatchType.SENTENCE)
+input_toxicity_scanner = InputToxicity(threshold=0.92, match_type=InputMatchType.SENTENCE)
 
 # Initialize the Toxicity scanner for outputs
-output_toxicity_scanner = OutputToxicity(threshold=0.5, match_type=OutputMatchType.SENTENCE)
+output_toxicity_scanner = OutputToxicity(threshold=0.92, match_type=OutputMatchType.SENTENCE)
 
 # Initialize the No Refusal scanner
-no_refusal_scanner = NoRefusal(threshold=0.5, match_type=OutputMatchType.FULL)
+no_refusal_scanner = NoRefusal(threshold=0.92, match_type=OutputMatchType.FULL)
 
 # Initialize the Ban Topics scanner
-ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.5)
+ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.75)
 
 def scan_input(prompt):
     # Scan for prompt injection
@@ -288,10 +288,10 @@ def get_rag_response(query):
 
     # Step 7: Sanitize the output before returning
     # TODO: restore this step when common outputs stop being flagged as violent
-    # sanitized_answer = scan_output(sanitized_query, answer)
+    sanitized_answer = scan_output(sanitized_query, answer)
     
     # Step 8: Store the sanitized Q&A pair in chat history
-    history_manager.add_interaction(sanitized_query, answer)
+    history_manager.add_interaction(sanitized_query, sanitized_answer)
     
     return answer
 
