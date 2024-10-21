@@ -204,14 +204,22 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        """Extracts text after ':' and before '<|end_header_id|>'."""
-        match = re.search(r': "(.*?)" <\|end_header_id\|>', text)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "").replace("|>", "").replace("<|end_header_id|>", "").replace("<|", "")
-            return answer 
-        else:
-            return None
+        """Extracts text after ':' and before '<|end_header_id|>' or any text within double quotes."""
+        print(f"Input text: {text}")  # Debugging: Print input text
+
+        # Adjusted regex pattern to match both quoted text and text without quotes
+        match = re.search(r':\s*"(.*?)"\s*<\|end_header_id\|>|:\s*(.*?)\s*<\|end_header_id\|>', text)
         
+        if match:
+            # Check which group matched (group 1 for quoted, group 2 for unquoted)
+            answer = match.group(1) if match.group(1) else match.group(2)
+            if answer:
+                answer = answer.strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "").replace("|>", "").replace("<|end_header_id|>", "").replace("<|", "")
+                print(f"Extracted answer: {answer}")  # Debugging: Print extracted answer
+                return answer 
+        else:
+            print("No match found.")  # Debugging: No match case
+            return None
 
 
 # Define an instance of ExtractAnswer
