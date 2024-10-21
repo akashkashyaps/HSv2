@@ -1,6 +1,6 @@
 from typing import Union
 from fastapi import FastAPI, Query
-from RAGFusion_Mistral import get_rag_response
+from RAG_Groq import groq_response
 
 app = FastAPI()
 
@@ -11,5 +11,5 @@ def read_root():
 
 @app.get("/llm")
 def process_input(input: str = Query(...)):
-    result = get_rag_response(input)
+    result = groq_response(input)
     return {"input": input, "result": result}
