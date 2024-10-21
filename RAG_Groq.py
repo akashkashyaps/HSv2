@@ -208,19 +208,14 @@ prompt = PromptTemplate(template=rag_template, input_variables=["context", "ques
 import re
 
 class ExtractAnswer:
-    def run(self, text):
-        # Check for CONTEXT and QUESTION headers
-        match = re.search(r'end_header_id(.*)$', text, re.DOTALL)
-        if match:
-            answer_text = match.group(3).strip().replace("\n", " ").replace("\r", "").replace("|>", "")
-            # Extract only the text within double quotes from the answer
-            answer_match = re.search(r'"(.*?)"', answer_text)
-            if answer_match:
-                answer = answer_match.group(1).strip()  # Get the text inside quotes
-                return answer
-            
-        # Return None if no valid context or answer found
-        return None
+    def __init__(self, template: str):
+        self.template = template
+
+    def extract_text(self, marker: str) -> str:
+        """Extracts text between the given marker and the end header ID."""
+        pattern = f"{marker}([^<]*)<\\|end_header_id\\|>"
+        match = re.search(pattern, self.template, re.DOTALL)
+        return match.group(1).strip() if match else None
         
 
 
