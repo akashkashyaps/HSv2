@@ -265,15 +265,15 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        """Handles text based on the presence of 'Refined Question for RAG:' and removes new lines."""
+        """Extracts the refined question if 'Refined Question for RAG:' is present (case insensitive); otherwise, cleans the text."""
         print(f"Original input text: {text}")  # Debugging: Print original input text
         
-        # Check if 'Refined Question for RAG:' is present
-        if "Refined Question for RAG:" in text:
-            # Remove the 'Refined Question for RAG: ' phrase from the text
-            text = text.replace("Refined Question for RAG: ", "")
+        # Check if 'Refined Question for RAG:' is present (case insensitive)
+        if re.search(r'refined question for rag:', text, re.IGNORECASE):
+            # Remove the 'Refined Question for RAG:' phrase from the text (case insensitive)
+            text = re.sub(r'refined question for rag:\s*', '', text, flags=re.IGNORECASE)
             
-            # Extract text within quotes that follows the specific phrase
+            # Extract the refined question within quotes
             quote_match = re.search(r'"(.*?)"', text)
             if quote_match:
                 # If a quote is found, return the cleaned quote
@@ -281,16 +281,12 @@ class ExtractAnswer:
                 print(f"Extracted answer from quotes: {cleaned_answer}")  # Debugging: Print extracted answer
                 return cleaned_answer  # Return the extracted quote
         
-        # Remove 'AI Robin Hood's Answer:' from the text
-        cleaned_text = text.replace("AI Robin Hood's Answer: ", "")
-        
-        # Remove new lines and extra whitespace
+        # If no refined question is found, clean the text
+        # Remove any irrelevant phrases and new lines
+        cleaned_text = re.sub(r'AI Robin Hood\'s Answer:\s*', '', text, flags=re.IGNORECASE)
         cleaned_text = cleaned_text.replace("\n", " ").replace("\r", "").strip()
         
-        # Return the cleaned text if no quote was extracted
         return cleaned_text
-
-
 
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
