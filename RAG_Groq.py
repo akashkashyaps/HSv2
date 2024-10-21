@@ -208,7 +208,8 @@ class ExtractAnswer:
         match = re.search(r': "(.*?)" <\|end_header_id\|>', text)
         if match:
             return match.group(1).replace('"', '')  # Remove double quotes
-        return None
+        else:
+            return None
         
 
 
