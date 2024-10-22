@@ -126,7 +126,12 @@ class CustomBM25Retriever(BM25Retriever):
         )
 
 
-retriever_BM25 = CustomBM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
+retriever_BM25 = CustomBM25Retriever.from_documents(
+    recreated_splits, 
+    search_kwargs={"k": 1}, 
+    preprocess_func=CustomBM25Retriever.custom_preprocessing_func
+)
+
 
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain_core.documents import Document
