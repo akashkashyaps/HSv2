@@ -112,7 +112,7 @@ class CustomBM25Retriever(BM25Retriever):
     def from_texts(cls, texts: Iterable[str], **kwargs: Any) -> CustomBM25Retriever:
         return super().from_texts(
             texts, 
-            preprocess_func=custom_preprocessing_func, 
+            preprocess_func=cls.preprocess_func, 
             **kwargs
         )
 
@@ -120,7 +120,7 @@ class CustomBM25Retriever(BM25Retriever):
     def from_documents(cls, documents: Iterable[Document], **kwargs: Any) -> CustomBM25Retriever:
         return super().from_documents(
             documents, 
-            preprocess_func=custom_preprocessing_func,
+            preprocess_func=cls.preprocess_func,
             **kwargs
         )
 
