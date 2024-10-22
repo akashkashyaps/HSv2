@@ -94,7 +94,40 @@ vectorstore = Chroma(persist_directory=persist_directory, embedding_function=emb
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 1})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
-retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Iterable, List, Optional
+from langchain_core.documents import Document
+
+class CustomBM25Retriever(BM25Retriever):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vectorizer.doc_freqs["nottingham_trent_university"] *= 0.1
+
+    @staticmethod
+    def custom_preprocessing_func(text: str) -> List[str]:
+        text = text.lower().replace("nottingham trent university", "nottingham_trent_university")
+        return text.split()
+
+    @classmethod
+    def from_texts(cls, texts: Iterable[str], **kwargs: Any) -> CustomBM25Retriever:
+        return super().from_texts(
+            texts, 
+            preprocess_func=cls.custom_preprocessing_func, 
+            **kwargs
+        )
+
+    @classmethod
+    def from_documents(cls, documents: Iterable[Document], **kwargs: Any) -> CustomBM25Retriever:
+        return super().from_documents(
+            documents, 
+            preprocess_func=cls.custom_preprocessing_func,
+            **kwargs
+        )
+
+
+retriever_BM25 = CustomBM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
 
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain_core.documents import Document
@@ -125,7 +158,7 @@ class TopKEnsembleRetriever(EnsembleRetriever):
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.15, 0.7, 0.15], k = 3
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.3, 0.5, 0.2], k = 2
 )
 
 
