@@ -92,7 +92,6 @@ home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
 vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-3")
 
-retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 1})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
 retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
 
@@ -125,7 +124,7 @@ class TopKEnsembleRetriever(EnsembleRetriever):
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.1, 0.7, 0.2], k = 2
+    retrievers=[retriever_mmr, retriever_BM25], weights=[0.1, 0.7, 0.2], k = 2
 )
 
 
