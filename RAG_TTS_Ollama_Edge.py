@@ -243,6 +243,12 @@ Guidelines:
 6. If the question is not related to the university or the Computer Science department, do not change the question, return as it is.
 7. Do not introduce speculative information or assumptions.
 8. Generate only one refined question per input.
+                       
+Forbidden:
+- No assumptions or general university knowledge
+- No lengthy medieval speech
+- No explanations or justifications, just output ONLY the refined question.
+- No information beyond the context
 
 Examples to learn from:
 New Question: "Who is the HOD?"
