@@ -93,8 +93,8 @@ home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
 vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-3")
 
-retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 1})
-retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
+retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 2})
+retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 2})
 
 from typing import Any, Callable, Dict, Iterable, List, Optional
 from langchain_core.documents import Document
@@ -124,7 +124,7 @@ class CustomBM25Retriever(BM25Retriever):
         )
 
 
-retriever_BM25 = CustomBM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
+retriever_BM25 = CustomBM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 2})
 
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain_core.documents import Document
@@ -155,7 +155,7 @@ class TopKEnsembleRetriever(EnsembleRetriever):
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr], weights=[0.5, 0.5], k = 3
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.3, 0.4, 0.3], k = 3
 )
 
 
