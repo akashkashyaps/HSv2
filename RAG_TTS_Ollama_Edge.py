@@ -96,9 +96,80 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
 retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
 
+from langchain.retrievers.ensemble import EnsembleRetriever
+from langchain_core.documents import Document
+from typing import List, Optional, Dict, Any
+from langchain_core.pydantic_v1 import root_validator
+from langchain_core.retrievers import RetrieverLike
+from collections import defaultdict
+from itertools import chain
+
+class ImprovedTopKEnsembleRetriever(EnsembleRetriever):
+    """Enhanced ensemble retriever with improved ranking.
+    
+    Args:
+        retrievers: List of retrievers to ensemble
+        weights: List of weights for each retriever
+        c: Constant for rank calculation (default: 60)
+        id_key: Key for document identification
+        k: Number of top results to return (default: 4)
+    """
+    
+    k: int = 4
+    
+    def weighted_reciprocal_rank(
+        self, doc_lists: List[List[Document]]
+    ) -> List[Document]:
+        """
+        Enhanced weighted Reciprocal Rank Fusion that preserves all scores.
+        
+        Args:
+            doc_lists: List of document lists from each retriever
+            
+        Returns:
+            List[Document]: Top k most relevant documents
+        """
+        if len(doc_lists) != len(self.weights):
+            raise ValueError("Number of rank lists must equal number of weights")
+
+        # Calculate RRF scores
+        rrf_scores: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"score": 0.0, "count": 0, "best_rank": float('inf')}
+        )
+        
+        # Calculate scores
+        for doc_list, weight in zip(doc_lists, self.weights):
+            for rank, doc in enumerate(doc_list, start=1):
+                doc_key = (
+                    doc.page_content
+                    if self.id_key is None
+                    else doc.metadata[self.id_key]
+                )
+                
+                # Update document statistics
+                score_info = rrf_scores[doc_key]
+                score_info["count"] += 1
+                score_info["best_rank"] = min(score_info["best_rank"], rank)
+                
+                # Basic RRF score with weight
+                score_info["score"] += weight / (rank + self.c)
+                score_info["document"] = doc
+
+        # Sort documents by score
+        scored_docs = [
+            info["document"]
+            for info in sorted(
+                rrf_scores.values(),
+                key=lambda x: x["score"],
+                reverse=True
+            )
+        ]
+
+        return scored_docs[:self.k]
+
 # initialize the ensemble retriever with 3 Retrievers
-ensemble_retriever = EnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.4, 0.4, 0.2]
+ensemble_retriever = ImprovedTopKEnsembleRetriever(
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.4, 0.4, 0.2], k = 2
 )
 
 
