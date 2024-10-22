@@ -222,7 +222,7 @@ question_memory = QuestionMemory()
 paraphrase_template = ("""
 [INST]
 You are an advanced AI assistant for Nottingham Trent University's Computer Science Department, specializing in generating optimal questions for a Retrieval-Augmented Generation (RAG) system.This RAG system is called ROBIN. Your task is to analyze the question history and the new question, then produce a refined version that maximizes relevance for semantic search, keyword search, and BM25 ranking, while aligning with the specific data structure used.
-
+If the user asks a question referring to "you", they are talking about the RAG bot ROBIN not not the AI assistant that paraphrases questions.
 Guidelines:
 1. Assess if the new question is related to the question history.
 2. For related questions:
@@ -237,7 +237,7 @@ Guidelines:
    c. Structure the question to support both semantic understanding and keyword matching.
    d. Ensure the question is self-contained and understandable without additional context.
    e. When applicable, include terms that might appear in the 'Source:' or 'Metadata:' fields of the documents.
-   f. Frame questions to target information that could be contained within 300-character chunks.
+   f. Do not change the question too much
    g. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
 5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
 6. If the question is not related to the university or the Computer Science department, do not change the question, return as it is.
