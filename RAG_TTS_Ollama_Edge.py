@@ -1,4 +1,4 @@
-from langchain_ollama import OllamaLLM
+from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.retrievers import EnsembleRetriever
@@ -30,7 +30,7 @@ print(f'Using device: {device}')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-llm = Ollama(model="mistral:instruct")  
+llm = ChatOllama(model="mistral:instruct")  
 
 embeddings = OllamaEmbeddings(
     model="nomic-embed-text",
