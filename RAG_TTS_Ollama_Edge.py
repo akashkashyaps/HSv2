@@ -109,18 +109,18 @@ class CustomBM25Retriever(BM25Retriever):
         self.preprocess_func: Callable[[str], List[str]] = custom_preprocessing_func
 
     @classmethod
-    def from_texts(cls, texts: Iterable[str], **kwargs: Any) -> CustomBM25Retriever:
+    def from_texts(cls, texts: Iterable[str], preprocess_func: Callable[[str], List[str]] = custom_preprocessing_func,**kwargs: Any, ) -> CustomBM25Retriever:
         return super().from_texts(
             texts, 
-            preprocess_func=cls.self.preprocess_func, 
+            preprocess_func=preprocess_func, 
             **kwargs
         )
 
     @classmethod
-    def from_documents(cls, documents: Iterable[Document], **kwargs: Any) -> CustomBM25Retriever:
+    def from_documents(cls, documents: Iterable[Document], preprocess_func: Callable[[str], List[str]] = custom_preprocessing_func,**kwargs: Any, ) -> CustomBM25Retriever:
         return super().from_documents(
             documents, 
-            preprocess_func=cls.self.preprocess_func,
+            preprocess_func=preprocess_func,
             **kwargs
         )
 
