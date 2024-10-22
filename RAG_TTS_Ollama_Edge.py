@@ -99,21 +99,20 @@ retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 
 from typing import Any, Callable, Dict, Iterable, List, Optional
 from langchain_core.documents import Document
 
+def custom_preprocessing_func(text: str) -> List[str]:
+        text = text.lower().replace("nottingham trent university", "nottingham_trent_university")
+        return text.split()
 class CustomBM25Retriever(BM25Retriever):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vectorizer.doc_freqs["nottingham_trent_university"] *= 0.1
-        self.preprocess_func = self.custom_preprocessing_func
-    @staticmethod
-    def custom_preprocessing_func(text: str) -> List[str]:
-        text = text.lower().replace("nottingham trent university", "nottingham_trent_university")
-        return text.split()
+        self.preprocess_func: Callable[[str], List[str]] = custom_preprocessing_func
 
     @classmethod
     def from_texts(cls, texts: Iterable[str], **kwargs: Any) -> CustomBM25Retriever:
         return super().from_texts(
             texts, 
-            preprocess_func=cls.custom_preprocessing_func, 
+            preprocess_func=custom_preprocessing_func, 
             **kwargs
         )
 
@@ -121,7 +120,7 @@ class CustomBM25Retriever(BM25Retriever):
     def from_documents(cls, documents: Iterable[Document], **kwargs: Any) -> CustomBM25Retriever:
         return super().from_documents(
             documents, 
-            preprocess_func=cls.custom_preprocessing_func,
+            preprocess_func=custom_preprocessing_func,
             **kwargs
         )
 
