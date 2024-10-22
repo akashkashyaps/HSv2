@@ -97,6 +97,8 @@ retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 
 retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 2})
 
 import asyncio
+from collections import defaultdict
+from itertools import chain
 from typing import Any, Dict, List, Optional
 
 from langchain_core.callbacks import (
@@ -105,11 +107,25 @@ from langchain_core.callbacks import (
 )
 from langchain_core.documents import Document
 from langchain_core.pydantic_v1 import root_validator, Field
-from langchain_core.retrievers import RetrieverLike
+from langchain_core.retrievers import BaseRetriever, RetrieverLike
 from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.config import ensure_config, patch_config
+from langchain_core.runnables.utils import (
+    ConfigurableFieldSpec,
+    get_unique_config_specs,
+)
 
-# Assuming EnsembleRetriever is defined as per your provided code
+# Assuming that the original 'EnsembleRetriever' is available in the context
 # from your_module import EnsembleRetriever
+
+def unique_by_key(iterable, key_func):
+    """Yield unique elements of an iterable based on a key function."""
+    seen = set()
+    for item in iterable:
+        k = key_func(item)
+        if k not in seen:
+            seen.add(k)
+            yield item
 
 class TopKEnsembleRetriever(EnsembleRetriever):
     """
@@ -120,68 +136,132 @@ class TopKEnsembleRetriever(EnsembleRetriever):
         weights: A list of weights corresponding to the retrievers. Defaults to equal
             weighting for all retrievers.
         c: A constant added to the rank in the RRF formula.
-        id_key: The key in the document's metadata used to determine unique documents.
-        k: The number of top results to return.
+        k: The number of top results to return. Defaults to returning all results.
     """
 
-    k: int = Field(default=5, gt=0, description="Number of top results to return.")
+    k: Optional[int] = Field(
+        default=None,
+        description="Number of top results to return after rank fusion. If None, returns all results.",
+    )
 
     @root_validator(pre=True)
-    def set_weights_and_validate_k(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        # Call the parent's root_validator to set default weights
-        values = super().set_weights(values)
+    def set_defaults_and_validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        # Set default weights if not provided
+        if not values.get("weights"):
+            n_retrievers = len(values.get("retrievers", []))
+            values["weights"] = [1 / n_retrievers] * n_retrievers
 
-        # Ensure 'k' is a positive integer
-        k = values.get('k', 5)
-        if not isinstance(k, int) or k <= 0:
-            raise ValueError("Parameter 'k' must be a positive integer.")
+        # Validate 'k' if provided
+        k = values.get('k')
+        if k is not None and (not isinstance(k, int) or k <= 0):
+            raise ValueError("Parameter 'k' must be a positive integer or None.")
+
         return values
 
     def rank_fusion(
-            self,
-            query: str,
-            run_manager: CallbackManagerForRetrieverRun,
-            *,
-            config: Optional[RunnableConfig] = None,
-        ) -> List[Document]:
+        self,
+        query: str,
+        run_manager: CallbackManagerForRetrieverRun,
+        *,
+        config: Optional[RunnableConfig] = None,
+    ) -> List[Document]:
         """
-        Retrieve the results of the retrievers, perform rank fusion, and return only
-        the top k documents.
-
-        Args:
-            query: The query to search for.
-
-        Returns:
-            A list of top k reranked documents.
+        Retrieve results from retrievers and perform rank fusion.
+        Return only the top k documents based on the fused rank.
         """
+        # Get results from all retrievers
+        retriever_docs = [
+            retriever.invoke(
+                query,
+                patch_config(
+                    config, callbacks=run_manager.get_child(tag=f"retriever_{i+1}")
+                ),
+            )
+            for i, retriever in enumerate(self.retrievers)
+        ]
 
-        # Call the parent method to get the fused documents
-        fused_documents = super().rank_fusion(query, run_manager, config=config)
-        # Return only the top k documents
-        return fused_documents[:self.k]
+        # Ensure all retrieved items are Documents
+        for i in range(len(retriever_docs)):
+            retriever_docs[i] = [
+                doc if isinstance(doc, Document) else Document(page_content=str(doc))
+                for doc in retriever_docs[i]
+            ]
+
+        # Perform weighted reciprocal rank fusion
+        fused_documents = self.weighted_reciprocal_rank(retriever_docs)
+
+        # Return only the top k documents if k is specified
+        if self.k is not None:
+            fused_documents = fused_documents[: self.k]
+
+        return fused_documents
 
     async def arank_fusion(
-            self,
-            query: str,
-            run_manager: AsyncCallbackManagerForRetrieverRun,
-            *,
-            config: Optional[RunnableConfig] = None,
-        ) -> List[Document]:
+        self,
+        query: str,
+        run_manager: AsyncCallbackManagerForRetrieverRun,
+        *,
+        config: Optional[RunnableConfig] = None,
+    ) -> List[Document]:
         """
-        Asynchronously retrieve the results of the retrievers, perform rank fusion,
-        and return only the top k documents.
-
-        Args:
-            query: The query to search for.
-
-        Returns:
-            A list of top k reranked documents.
+        Asynchronously retrieve results and perform rank fusion.
+        Return only the top k documents based on the fused rank.
         """
+        retriever_docs = await asyncio.gather(
+            *[
+                retriever.ainvoke(
+                    query,
+                    patch_config(
+                        config, callbacks=run_manager.get_child(tag=f"retriever_{i+1}")
+                    ),
+                )
+                for i, retriever in enumerate(self.retrievers)
+            ]
+        )
 
-        # Call the parent method to get the fused documents
-        fused_documents = await super().arank_fusion(query, run_manager, config=config)
-        # Return only the top k documents
-        return fused_documents[:self.k]
+        for i in range(len(retriever_docs)):
+            retriever_docs[i] = [
+                doc if isinstance(doc, Document) else Document(page_content=str(doc))
+                for doc in retriever_docs[i]
+            ]
+
+        fused_documents = self.weighted_reciprocal_rank(retriever_docs)
+
+        if self.k is not None:
+            fused_documents = fused_documents[: self.k]
+
+        return fused_documents
+
+    def weighted_reciprocal_rank(
+        self, doc_lists: List[List[Document]]
+    ) -> List[Document]:
+        """
+        Perform weighted Reciprocal Rank Fusion on multiple ranked lists.
+        Uses page_content as the identifier for documents.
+        """
+        if len(doc_lists) != len(self.weights):
+            raise ValueError(
+                "The number of retrievers must match the number of weights."
+            )
+
+        # Map each document's page_content to its cumulative RRF score
+        rrf_scores: Dict[str, float] = defaultdict(float)
+        doc_dict: Dict[str, Document] = {}
+
+        for docs, weight in zip(doc_lists, self.weights):
+            for rank, doc in enumerate(docs, start=1):
+                doc_id = doc.page_content  # Use page_content as the identifier
+                # Update RRF score
+                rrf_scores[doc_id] += weight / (self.c + rank)
+                # Keep the document for future reference
+                if doc_id not in doc_dict:
+                    doc_dict[doc_id] = doc
+
+        # Sort documents by RRF score in descending order
+        sorted_doc_ids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)
+        sorted_docs = [doc_dict[doc_id] for doc_id in sorted_doc_ids]
+
+        return sorted_docs
 
 
 # initialize the ensemble retriever with 3 Retrievers
