@@ -96,40 +96,93 @@ retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kw
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 2})
 retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 2})
 
+import asyncio
+from typing import Any, Dict, List, Optional
+
+from langchain_core.callbacks import (
+    AsyncCallbackManagerForRetrieverRun,
+    CallbackManagerForRetrieverRun,
+)
 from langchain_core.documents import Document
+from langchain_core.pydantic_v1 import root_validator, Field
+from langchain_core.retrievers import RetrieverLike
+from langchain_core.runnables import RunnableConfig
+
+# Assuming EnsembleRetriever is defined as per your provided code
+# from your_module import EnsembleRetriever
 
 class TopKEnsembleRetriever(EnsembleRetriever):
-    """Ensemble retriever that returns only top k results.
-    
-    Inherits from EnsembleRetriever and adds a k parameter to limit results.
-    
+    """
+    Ensemble retriever that returns only the top k results with the best rank.
+
     Args:
         retrievers: A list of retrievers to ensemble.
-        weights: A list of weights corresponding to the retrievers.
-        c: Constant added to rank (default: 60).
-        id_key: Key in document metadata for uniqueness (default: None, uses page_content).
-        k: Number of top documents to return (default: 4).
+        weights: A list of weights corresponding to the retrievers. Defaults to equal
+            weighting for all retrievers.
+        c: A constant added to the rank in the RRF formula.
+        id_key: The key in the document's metadata used to determine unique documents.
+        k: The number of top results to return.
     """
-    
-    k: int = 4  # Number of top documents to return
-    
-    def weighted_reciprocal_rank(
-        self, doc_lists: List[List[Document]]
-    ) -> List[Document]:
+
+    k: int = Field(default=5, gt=0, description="Number of top results to return.")
+
+    @root_validator(pre=True)
+    def set_weights_and_validate_k(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        # Call the parent's root_validator to set default weights
+        values = super().set_weights(values)
+
+        # Ensure 'k' is a positive integer
+        k = values.get('k', 5)
+        if not isinstance(k, int) or k <= 0:
+            raise ValueError("Parameter 'k' must be a positive integer.")
+        return values
+
+    def rank_fusion(
+            self,
+            query: str,
+            run_manager: CallbackManagerForRetrieverRun,
+            *,
+            config: Optional[RunnableConfig] = None,
+        ) -> List[Document]:
         """
-        Perform weighted Reciprocal Rank Fusion and return top k results.
-        
+        Retrieve the results of the retrievers, perform rank fusion, and return only
+        the top k documents.
+
         Args:
-            doc_lists: A list of rank lists, where each rank list contains unique items.
-            
+            query: The query to search for.
+
         Returns:
-            list: The final aggregated list of top k items sorted by weighted RRF scores.
+            A list of top k reranked documents.
         """
-        # Get all sorted documents using parent class method
-        sorted_docs = super().weighted_reciprocal_rank(doc_lists)
-        
-        # Return only top k documents
-        return sorted_docs[:self.k]
+
+        # Call the parent method to get the fused documents
+        fused_documents = super().rank_fusion(query, run_manager, config=config)
+        # Return only the top k documents
+        return fused_documents[:self.k]
+
+    async def arank_fusion(
+            self,
+            query: str,
+            run_manager: AsyncCallbackManagerForRetrieverRun,
+            *,
+            config: Optional[RunnableConfig] = None,
+        ) -> List[Document]:
+        """
+        Asynchronously retrieve the results of the retrievers, perform rank fusion,
+        and return only the top k documents.
+
+        Args:
+            query: The query to search for.
+
+        Returns:
+            A list of top k reranked documents.
+        """
+
+        # Call the parent method to get the fused documents
+        fused_documents = await super().arank_fusion(query, run_manager, config=config)
+        # Return only the top k documents
+        return fused_documents[:self.k]
+
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
@@ -401,7 +454,7 @@ def get_rag_response_ollama(query):
     question_memory.add_question(sanitized_query)
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-    context = ensemble_retriever.get_relevant_documents(sanitized_query)
+    context = ensemble_retriever.invoke(sanitized_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
     result = rag_chain.invoke({"question": paraphrased_output, "context": context}, config={"callbacks": [langfuse_handler]})
