@@ -1,6 +1,6 @@
 from typing import Union
 from fastapi import FastAPI, Query
-from RAG_Groq import groq_response
+from RAG_TTS_Ollama_Edge import get_rag_response_ollama
 
 app = FastAPI()
 
@@ -11,5 +11,5 @@ def read_root():
 
 @app.get("/llm")
 def process_input(input: str = Query(...)):
-    result = groq_response(input)
+    result = get_rag_response_ollama(input)
     return {"input": input, "result": result}
