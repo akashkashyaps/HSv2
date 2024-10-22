@@ -92,7 +92,42 @@ home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
 vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-3")
 
-retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 2})
+retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 1})
+retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
+retriever_BM25 = BM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
+
+from langchain.retrievers.ensemble import EnsembleRetriever
+from langchain_core.documents import Document
+from typing import List
+
+class TopKEnsembleRetriever(EnsembleRetriever):
+    """Ensemble retriever that returns only top k results while preserving original ranking logic.
+    
+    Args:
+        retrievers: List of retrievers to ensemble
+        weights: List of weights for each retriever
+        c: Constant for rank calculation (default: 60)
+        id_key: Key for document identification
+        k: Number of top results to return (default: 4)
+    """
+    
+    k: int = 4
+    
+    def weighted_reciprocal_rank(
+        self, doc_lists: List[List[Document]]
+    ) -> List[Document]:
+        """Get top k documents using original ranking logic."""
+        # Use parent class to get properly ranked documents
+        all_ranked_docs = super().weighted_reciprocal_rank(doc_lists)
+        
+        # Return only top k
+        return all_ranked_docs[:self.k]
+
+# initialize the ensemble retriever with 3 Retrievers
+ensemble_retriever = TopKEnsembleRetriever(
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.1, 0.7, 0.2], k = 2
+)
+
 
 class QuestionMemory:
     def __init__(self, max_questions: int = 5, clear_interval: int = 600):  # 600 seconds = 10 minutes
@@ -360,7 +395,7 @@ def get_rag_response_ollama(query):
     question_memory.add_question(sanitized_query)
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
-    context = retriever_vanilla.invoke(sanitized_query)
+    context = ensemble_retriever.invoke(sanitized_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
     result = rag_chain.invoke({"question": paraphrased_output, "context": context}, config={"callbacks": [langfuse_handler]})
