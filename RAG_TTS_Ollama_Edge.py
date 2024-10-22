@@ -101,27 +101,27 @@ from langchain_core.documents import Document
 from typing import List
 
 class TopKEnsembleRetriever(EnsembleRetriever):
-    """Ensemble retriever that returns top k results from the second k chunk while preserving original ranking logic.
+    """Ensemble retriever that returns top k results starting from the second top chunk.
     
     Args:
         retrievers: List of retrievers to ensemble
-        weights: List of weights for each retriever 
-        c: Constant for rank calculation (default: 60)
+        weights: List of weights for each retriever
+        c: Constant for rank calculation (default: 60) 
         id_key: Key for document identification
-        k: Number of top results to return (default: 4)
+        k: Number of top results per chunk (default: 2)
     """
     
-    k: int = 4
+    k: int = 2
     
     def weighted_reciprocal_rank(
         self, doc_lists: List[List[Document]]
     ) -> List[Document]:
-        """Get top k documents from the second k chunk using original ranking logic."""
+        """Get top k documents starting from the second top chunk."""
         # Use parent class to get properly ranked documents
         all_ranked_docs = super().weighted_reciprocal_rank(doc_lists)
         
-        # Return top k from the second k chunk
-        return all_ranked_docs[self.k:2*self.k]
+        # Return only the second top chunk onwards
+        return all_ranked_docs[self.k:]
 
 
 # initialize the ensemble retriever with 3 Retrievers
