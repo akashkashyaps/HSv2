@@ -125,7 +125,7 @@ class TopKEnsembleRetriever(EnsembleRetriever):
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.15, 0.7, 0.15], k = 2
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.15, 0.7, 0.15], k = 3
 )
 
 
