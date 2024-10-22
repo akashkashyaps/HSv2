@@ -1,10 +1,10 @@
-from langchain_community.llms import Ollama  
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaLLM
+from langchain_ollama import OllamaEmbeddings
 from langchain.prompts import ChatPromptTemplate
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_community.document_loaders import Docx2txtLoader
 import torch
 import time
