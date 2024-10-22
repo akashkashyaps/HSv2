@@ -386,12 +386,12 @@ def get_rag_response_ollama(query):
     # Step 4: Paraphrase the sanitized query using question history
     paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
     print("Debug - Paraphrased output:", paraphrased_output)
-    paraphrased_query = extract_answer_instance.run(paraphrased_output)
-    print("Debug - Paraphrased query:", paraphrased_query)
+    # paraphrased_query = extract_answer_instance.run(paraphrased_output)
+    # print("Debug - Paraphrased query:", paraphrased_query)
 
     # Step 5: If paraphrasing fails, use the original sanitized query
-    if not paraphrased_query:
-        paraphrased_query = sanitized_query
+    if not paraphrased_output:
+        paraphrased_output = sanitized_query
 
     # Step 6: Store the original (or paraphrased) query in the memory for future use
     question_memory.add_question(sanitized_query)
@@ -400,16 +400,16 @@ def get_rag_response_ollama(query):
     context = ensemble_retriever.get_relevant_documents(sanitized_query)
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_query, "context": context}, config={"callbacks": [langfuse_handler]})
+    result = rag_chain.invoke({"question": paraphrased_output, "context": context}, config={"callbacks": [langfuse_handler]})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
 
-    # Step 10: Extract the answer from the result
-    answer = extract_answer_instance.run(result)
+    # # Step 10: Extract the answer from the result
+    # answer = extract_answer_instance.run(result)
 
     # Step 11: Sanitize the output before returning
-    sanitized_answer = scan_output(paraphrased_query, answer)
+    sanitized_answer = scan_output(paraphrased_output, result)
     
     return sanitized_answer
 
