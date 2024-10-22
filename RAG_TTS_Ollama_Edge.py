@@ -1,3 +1,4 @@
+from __future__ import annotations
 from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
 from langchain.prompts import ChatPromptTemplate
@@ -94,8 +95,6 @@ vectorstore = Chroma(persist_directory=persist_directory, embedding_function=emb
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 1})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 1})
-
-from __future__ import annotations
 
 from typing import Any, Callable, Dict, Iterable, List, Optional
 from langchain_core.documents import Document
