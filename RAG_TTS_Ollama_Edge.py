@@ -103,7 +103,7 @@ class CustomBM25Retriever(BM25Retriever):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.vectorizer.doc_freqs["nottingham_trent_university"] *= 0.1
-
+        self.preprocess_func = self.custom_preprocessing_func
     @staticmethod
     def custom_preprocessing_func(text: str) -> List[str]:
         text = text.lower().replace("nottingham trent university", "nottingham_trent_university")
@@ -126,12 +126,7 @@ class CustomBM25Retriever(BM25Retriever):
         )
 
 
-retriever_BM25 = CustomBM25Retriever.from_documents(
-    recreated_splits, 
-    search_kwargs={"k": 1}, 
-    preprocess_func=CustomBM25Retriever.custom_preprocessing_func
-)
-
+retriever_BM25 = CustomBM25Retriever.from_documents(recreated_splits, search_kwargs={"k": 1})
 
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain_core.documents import Document
