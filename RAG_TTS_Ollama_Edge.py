@@ -101,28 +101,27 @@ from langchain_core.documents import Document
 from typing import List
 
 class TopKEnsembleRetriever(EnsembleRetriever):
-    """Ensemble retriever that returns top k results starting from the second top chunk.
+    """Ensemble retriever that returns only top k results while preserving original ranking logic.
     
     Args:
         retrievers: List of retrievers to ensemble
         weights: List of weights for each retriever
-        c: Constant for rank calculation (default: 60) 
+        c: Constant for rank calculation (default: 60)
         id_key: Key for document identification
-        k: Number of top results per chunk (default: 2)
+        k: Number of top results to return (default: 4)
     """
     
-    k: int = 2
+    k: int = 4
     
     def weighted_reciprocal_rank(
         self, doc_lists: List[List[Document]]
     ) -> List[Document]:
-        """Get top k documents starting from the second top chunk."""
+        """Get top k documents using original ranking logic."""
         # Use parent class to get properly ranked documents
         all_ranked_docs = super().weighted_reciprocal_rank(doc_lists)
         
-        # Return only the second top chunk onwards
-        return all_ranked_docs[self.k:]
-
+        # Return only top k
+        return all_ranked_docs[:self.k]
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
@@ -397,9 +396,10 @@ def get_rag_response_ollama(query):
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
     context = ensemble_retriever.invoke(sanitized_query)
+    filtered_results = context[1:]
 
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
-    result = rag_chain.invoke({"question": paraphrased_output, "context": context}, config={"callbacks": [langfuse_handler]})
+    result = rag_chain.invoke({"question": paraphrased_output, "context": filtered_results}, config={"callbacks": [langfuse_handler]})
 
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
