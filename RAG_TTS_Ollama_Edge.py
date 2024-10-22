@@ -426,7 +426,7 @@ def get_rag_response_ollama(query):
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
     context = ensemble_retriever.invoke(sanitized_query)
-    print("Debug - Context:", context)
+    
     # Step 8: Generate a response using the RAG pipeline with the paraphrased (or original) query
     result = rag_chain.invoke({"question": paraphrased_output, "context": context}, config={"callbacks": [langfuse_handler]})
 
@@ -438,7 +438,7 @@ def get_rag_response_ollama(query):
 
     # Step 11: Sanitize the output before returning
     sanitized_answer = scan_output(paraphrased_output, result)
-    
+    print("Debug - Context:", context)
     return sanitized_answer
 
 # if __name__ == "__main__":
