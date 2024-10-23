@@ -1,21 +1,21 @@
-transformers
+# transformers
 torch
 pandas
 numpy
 langchain
 chromadb
-bitsandbytes
+# bitsandbytes
 accelerate
 langchain-community
-langchain_experimental
+# langchain_experimental
 python-docx
 rank_bm25
-detoxify
+# detoxify
 nest_asyncio
 langfuse
-sentence_transformers
+# sentence_transformers
 llm_guard
-langchain_huggingface
+# langchain_huggingface
 datasets
 docx2txt
 fastapi[standard]
