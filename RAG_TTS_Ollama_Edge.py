@@ -160,7 +160,7 @@ ensemble_retriever = TopKEnsembleRetriever(
 
 
 class QuestionMemory:
-    def __init__(self, max_questions: int = 5, clear_interval: int = 600):  # 600 seconds = 10 minutes
+    def __init__(self, max_questions: int = 3, clear_interval: int = 300):  # 600 seconds = 10 minutes
         self.questions: List[str] = []
         self.max_questions = max_questions
         self.clear_interval = clear_interval
@@ -228,20 +228,6 @@ from langchain_core.runnables import RunnablePassthrough
 from typing import List
 import re
 
-class QuestionMemory:
-    def __init__(self, max_questions: int = 5):
-        self.questions: List[str] = []
-        self.max_questions = max_questions
-
-    def add_question(self, question: str):
-        self.questions.append(question)
-        if len(self.questions) > self.max_questions:
-            self.questions.pop(0)
-
-    def get_history(self) -> str:
-        return "\n".join(self.questions)
-
-question_memory = QuestionMemory()
 
 paraphrase_template = ("""
 [INST]
@@ -422,7 +408,7 @@ def get_rag_response_ollama(query):
         paraphrased_output = sanitized_query
 
     # Step 6: Store the original (or paraphrased) query in the memory for future use
-    question_memory.add_question(sanitized_query)
+    question_memory.add_question(paraphrased_output)
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
     context = ensemble_retriever.invoke(sanitized_query)
