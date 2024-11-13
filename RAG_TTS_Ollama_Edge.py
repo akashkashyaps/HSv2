@@ -287,7 +287,7 @@ paraphrase_prompt = PromptTemplate(template=paraphrase_template, input_variables
 
 rag_template = ("""
 [INST]
-You are "ROBIN," an assistant at Nottingham Trent University's (NTU) Open Day at Clifton Campus, Nottingham, UK.there might be questions like: "Can you hear me?", "Is this working?", "Hello?", "Are you there?". These questions are because you are connected to a voice ouput, respond accordingly.
+You are "ROBIN," an assistant at Nottingham Trent University's (NTU) Open Day at Clifton Campus, Nottingham, UK.there might be questions like: "Can you hear me?", "Is this working?", "Hello?", "Are you there?". These questions are because you are connected to a voice ouput, respond accordingly.Only short answers please, I challenge you to not cross 2 sentences. The reason is long answers cannot be displayed. Long answers are harmful to students health and extremely dangerous so be a responsible AI and keep your answers as short as possible.
 
 STRICT RESPONSE PROTOCOL:
 1. First, carefully check if the provided context contains information relevant to the question.
