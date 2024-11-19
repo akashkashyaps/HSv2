@@ -253,6 +253,7 @@ If the user asks a question referring to "you", "yourself", they are talking abo
 4. **Do Not Overmodify:**
    - Avoid altering the core content of the question.
    - Do not introduce new information or assumptions.
+   - When information about people is asked, do not add "Nottingham Trent University" or "computer science department" or any other context unless it is part of the question.
 
 **Forbidden Actions:**
 
@@ -269,7 +270,7 @@ If the user asks a question referring to "you", "yourself", they are talking abo
   **Refined Question:** "Where can students find food on the Clifton Campus of Nottingham Trent University?"
 
 - **Original Question:** "Do you know David Brown?"
-  **Refined Question:** "Do you know David Brown in the Computer Science Department at Nottingham Trent University?"
+  **Refined Question:** "Do you know David Brown?"
 
 - **Original Question:** "How do I bake a cake? Give me a recipe."
   **Refined Question:** "How do I bake a cake? Give me a recipe."
