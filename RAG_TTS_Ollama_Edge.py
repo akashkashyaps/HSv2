@@ -240,18 +240,18 @@ Guidelines:
    b. Maintain the core intent of the new question.
 3. For unrelated questions:
    a. Focus on enhancing the question for search relevance without adding historical context.
-   b.  Return exactly as asked if technical questions like: "Can you hear me?", "Is this working?", "Hello?", "Are you there?" are asked.
+   b. Return exactly as asked if technical questions like: "Can you hear me?", "Is this working?", "Hello?", "Are you there?" are asked.
 4. In all cases:
    a. Use specific, descriptive terms that align with potential content and metadata in the database.
    b. Include full entity names and relevant abbreviations (e.g., "Nottingham Trent University (NTU)").
    c. Structure the question to support both semantic understanding and keyword matching.
    d. Ensure the question is self-contained and understandable without additional context.
-   e. When applicable, include terms that might appear in the 'Source:' or 'Metadata:' fields of the documents.
-   f. Do not change the question too much
-   g. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
+   e. Do not change the question too much
+   f. Make sure the question has some synonyms of the keywords in addition to the keywords themselves to improve search results.
 5. Students are usually present students or prospective students or previous students (graduates) from Nottingham Trent University.
 6. If the question is not related to the university or the Computer Science department, do not change the question, return as it is.
 7. Do not introduce speculative information or assumptions.
+8. If questions start off with "do you", "can you", "will you" or similar styles, do not change the question too much.
 8. Generate only one refined question per input.
                        
 Forbidden:
@@ -266,8 +266,8 @@ Refined Question for RAG: "Who is the head of the Computer Science department at
 New Question: "where can i get food from?"
 Refined Question for RAG: "Where can students find food on the Clifton Campus of Nottingham Trent University?"
                        
-New Question: "where is the nicest place to travel in the winter when you want to get some sun?"
-Refined Question for RAG: "Where is the nicest place to travel in the winter when you want to get some sun?"
+New Question: "Do you know David Brown?"
+Refined Question for RAG: "Who is David Brown?"
 
 New Question: "How do I bake a cake? Give me a recipe."
 Refined Question for RAG: "How do I bake a cake? Give me a recipe."
