@@ -253,13 +253,13 @@ If the user asks a question referring to "you", "yourself", they are talking abo
 4. **Do Not Overmodify:**
    - Avoid altering the core content of the question.
    - Do not introduce new information or assumptions.
-   - When information about people is asked, do not add "Nottingham Trent University" or "computer science department" or any other context unless it is part of the question.
 
 **Forbidden Actions:**
 
 - Do not provide explanations, justifications, or any additional text beyond the refined question.
 - Do not alter the question if it's already appropriate.
 - Do not add "Nottingham Trent University" to every question unless necessary for understanding.
+- Do not add "Nottingham Trent University" or "computer science department" or any other context when asked about humans unless it is part of the question.
 
 **Examples:**
 
