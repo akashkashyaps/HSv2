@@ -329,18 +329,13 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        # Split the text into lines
-        lines = text.split("\n")
-        # Remove lines starting with 'Source', 'Metadata', or containing unwanted characters
-        filtered_lines = [
-            line for line in lines 
-            if not (line.strip().lower().startswith("source") or line.strip().lower().startswith("metadata"))
-        ] 
-        # Join the remaining lines into a single string, removing newlines and extra spaces
-        clean_answer = " ".join(filtered_lines).strip()
-        # Remove special characters (except spaces, alphanumeric, periods, and commas)
-        clean_answer = re.sub(r'[^\w\s.,]', '', clean_answer)
-        return clean_answer
+        # Remove everything starting with 'Source:', 'Metadata:', or 'page_content:'
+        cleaned_text = re.sub(r'(Source:.*|Metadata:.*|page_content:.*)', '', text, flags=re.DOTALL)
+        # Remove special characters except alphanumerics, spaces, periods, and commas
+        cleaned_text = re.sub(r'[^\w\s.,]', '', cleaned_text)
+        # Remove extra whitespace, including newlines
+        cleaned_text = " ".join(cleaned_text.split()).strip()
+        return cleaned_text
 
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
