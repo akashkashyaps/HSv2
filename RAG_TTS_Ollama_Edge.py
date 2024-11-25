@@ -329,6 +329,7 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
+        text = text.lower()
         # Remove everything starting with 'Source:', 'Metadata:', or 'page_content:'
         cleaned_text = re.sub(r'(Source:.*|Metadata:.*|page_content:.*)', '', text, flags=re.DOTALL)
         # Remove special characters except alphanumerics, spaces, periods, and commas
