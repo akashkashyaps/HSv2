@@ -160,7 +160,7 @@ class TopKEnsembleRetriever(EnsembleRetriever):
 
 # initialize the ensemble retriever with 3 Retrievers
 ensemble_retriever = TopKEnsembleRetriever(
-    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.3, 0.4, 0.3], k = 4
+    retrievers=[retriever_vanilla, retriever_mmr, retriever_BM25], weights=[0.15, 0.15, 0.7], k = 4
 )
 
 
@@ -467,5 +467,5 @@ results_ensemble = ensemble_retriever.get_relevant_documents("Do you know David 
 
 # print("Vanilla Results:", results_vanilla)
 # print("MMR Results:", results_mmr)
-print("BM25 Results:", results_bm25)
-# print("Ensemble Results:", results_ensemble)
+# print("BM25 Results:", results_bm25)
+print("Ensemble Results:", results_ensemble)
