@@ -35,7 +35,8 @@ llm = ChatOllama(
     model="mistral:instruct",
     temperature=0.2,
     num_predict = 256,
-    frequency_penalty = 0.5,)  
+    frequency_penalty = 0.5,
+    num_ctx = 8192 )  
 
 embeddings = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -235,14 +236,14 @@ import re
 
 paraphrase_template = ("""
 [INST]
-You are an advanced AI assistant for Nottingham Trent University's Computer Science Department, specializing in generating optimal questions for a Retrieval-Augmented Generation (RAG) system.This RAG system is called ROBIN. Your task is to analyze the question history and the new question, then produce a refined version that maximizes relevance for semantic search, keyword search, and BM25 ranking, while aligning with the specific data structure used.
+You are an advanced AI assistant specializing in refining questions for a Retrieval-Augmented Generation (RAG) system called ROBIN.
 If the user asks a question referring to "you", "yourself", they are talking about ROBIN and not the AI assistant that paraphrases questions. Remember, people are talking to you like it is a conversation with ROBIN.
 
 **Important Guidelines:**
 
 1. **Assess Relatedness:**
    - Determine if the new question is related to the question history or the Computer Science Department at Nottingham Trent University (NTU).
-   - If related, incorporate relevant context from the history or add "in the Computer Science Department at NTU" if it enhances clarity.
+   - Only add 'in the Computer Science Department at NTU' if the user's question explicitly relates to the department or NTU, and adding the context is essential for understanding or relevance.
    - If unrelated, focus on improving search relevance without adding context.
 
 2. **Maintain Original Structure and Tone:**
@@ -262,7 +263,7 @@ If the user asks a question referring to "you", "yourself", they are talking abo
 
 - Do not provide explanations, justifications, or any additional text beyond the refined question.
 - Do not alter the question if it's already appropriate.
-- Do not add "Nottingham Trent University" to every question unless necessary for understanding.
+- Do not add 'Nottingham Trent University' or 'Computer Science Department' unless explicitly mentioned or crucial for clarity.
 - Do not add "Nottingham Trent University" or "computer science department" or any other context when asked about humans unless it is part of the question.
 
 **Examples:**
