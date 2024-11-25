@@ -466,6 +466,6 @@ results_bm25 = retriever_BM25.get_relevant_documents("Do you know David Brown?")
 results_ensemble = ensemble_retriever.get_relevant_documents("Do you know David Brown?")
 
 # print("Vanilla Results:", results_vanilla)
-print("MMR Results:", results_mmr)
-# print("BM25 Results:", results_bm25)
+# print("MMR Results:", results_mmr)
+print("BM25 Results:", results_bm25)
 # print("Ensemble Results:", results_ensemble)
