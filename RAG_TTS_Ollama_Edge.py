@@ -463,7 +463,7 @@ results_mmr = retriever_mmr.get_relevant_documents("Do you know David Brown?")
 # Test retriever_BM25
 results_bm25 = retriever_BM25.get_relevant_documents("Do you know David Brown?")
 
-results_ensemble = ensemble_retriever.get_relevant_documents("Do you know David Brown?")
+results_ensemble = ensemble_retriever.get_relevant_documents("who is david brown?")
 
 # print("Vanilla Results:", results_vanilla)
 # print("MMR Results:", results_mmr)
