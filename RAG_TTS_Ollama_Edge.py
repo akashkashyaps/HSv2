@@ -275,7 +275,7 @@ If the user asks a question referring to "you", "yourself", they are talking abo
   **Refined Question:** "Where can students find food on the Clifton Campus of Nottingham Trent University?"
 
 - **Original Question:** "Do you know David Brown?"
-  **Refined Question:** "Do you know David Brown?"
+  **Refined Question:** "Who is David Brown?"
 
 - **Original Question:** "Can you hear me?"
   **Refined Question:** "Can you hear me?"
@@ -440,8 +440,8 @@ def get_rag_response_ollama(query):
     print("Debug - Context:", context)
     return sanitized_answer
 
-# if __name__ == "__main__":
-#     print(get_rag_response_ollama("What is the history of Nottingham Trent University?"))
+if __name__ == "__main__":
+    print(get_rag_response_ollama("What is the history of Nottingham Trent University?"))
 
 
 # test_queries = [
@@ -454,18 +454,18 @@ def get_rag_response_ollama(query):
 # for query in test_queries:
 #     print(f"Query: {query}\nResponse: {get_rag_response_ollama(query)}\n")
 
-# Test retriever_vanilla
-results_vanilla = retriever_vanilla.get_relevant_documents("Do you know David Brown?")
+# # Test retriever_vanilla
+# results_vanilla = retriever_vanilla.get_relevant_documents("Do you know David Brown?")
 
-# Test retriever_mmr
-results_mmr = retriever_mmr.get_relevant_documents("Do you know David Brown?")
+# # Test retriever_mmr
+# results_mmr = retriever_mmr.get_relevant_documents("Do you know David Brown?")
 
-# Test retriever_BM25
-results_bm25 = retriever_BM25.get_relevant_documents("Do you know David Brown?")
+# # Test retriever_BM25
+# results_bm25 = retriever_BM25.get_relevant_documents("Do you know David Brown?")
 
-results_ensemble = ensemble_retriever.get_relevant_documents("who is david brown?")
+# results_ensemble = ensemble_retriever.get_relevant_documents("who is david brown?")
 
 # print("Vanilla Results:", results_vanilla)
 # print("MMR Results:", results_mmr)
 # print("BM25 Results:", results_bm25)
-print("Ensemble Results:", results_ensemble)
+# print("Ensemble Results:", results_ensemble)
