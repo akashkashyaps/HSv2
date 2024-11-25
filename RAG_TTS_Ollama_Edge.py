@@ -42,8 +42,17 @@ embeddings = OllamaEmbeddings(
     model="nomic-embed-text",
 )  
 
-loader = Docx2txtLoader("CS_OpenDay_General_Updated.docx")
-loaded_documents = loader.load()
+# Load two documents
+loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
+loader2 = Docx2txtLoader("STAFF_INFORMATION.docx")  # Replace with your second document's filename
+
+# Load the documents
+loaded_documents1 = loader1.load()
+loaded_documents2 = loader2.load()
+
+# Combine the loaded documents
+loaded_documents = loaded_documents1 + loaded_documents2
+
 
 
 def extract_metadata(text):
