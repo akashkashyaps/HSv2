@@ -44,7 +44,7 @@ embeddings = OllamaEmbeddings(
 
 # Load two documents
 loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
-loader2 = Docx2txtLoader("STAFF_INFORMATION.docx")  # Replace with your second document's filename
+loader2 = Docx2txtLoader("STAFF_INFORMATION_v1.docx") 
 
 # Load the documents
 loaded_documents1 = loader1.load()
@@ -105,7 +105,7 @@ import re
 
 home_directory = os.path.expanduser("~")
 persist_directory = os.path.join(home_directory, "HSv2", "vecdb")
-vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-4")
+vectorstore = Chroma(persist_directory=persist_directory, embedding_function=embeddings, collection_name="ROBIN-5")
 
 retriever_vanilla = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 retriever_mmr = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": 3})
