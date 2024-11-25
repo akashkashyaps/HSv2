@@ -208,18 +208,18 @@ class QuestionMemory:
 
 question_memory = QuestionMemory()
 
-class ExtractAnswer:
-    def run(self, text):
-        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
-        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-            return answer
-        else:
-            return None
+# class ExtractAnswer:
+#     def run(self, text):
+#         # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
+#         match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
+#         if match:
+#             answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
+#             return answer
+#         else:
+#             return None
 
-# Define an instance of ExtractAnswer
-extract_answer_instance = ExtractAnswer()
+# # Define an instance of ExtractAnswer
+# extract_answer_instance = ExtractAnswer()
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda
@@ -271,9 +271,6 @@ If the user asks a question referring to "you", "yourself", they are talking abo
 
 - **Original Question:** "Do you know David Brown?"
   **Refined Question:** "Do you know David Brown?"
-
-- **Original Question:** "How do I bake a cake? Give me a recipe."
-  **Refined Question:** "How do I bake a cake? Give me a recipe."
 
 - **Original Question:** "Can you hear me?"
   **Refined Question:** "Can you hear me?"
@@ -332,13 +329,18 @@ import re
 
 class ExtractAnswer:
     def run(self, text):
-        # Adjust the regex pattern to handle the potential characters and spacing around [/INST]
-        match = re.search(r'\[\/INST\]\s*(.*)', text, re.DOTALL)
-        if match:
-            answer = match.group(1).strip().replace("\n", " ").replace("\r", "").replace("[/", "").replace("]", "")
-            return answer
-        else:
-            return None
+        # Split the text into lines
+        lines = text.split("\n")
+        # Remove lines starting with 'Source', 'Metadata', or containing unwanted characters
+        filtered_lines = [
+            line for line in lines 
+            if not (line.strip().lower().startswith("source") or line.strip().lower().startswith("metadata"))
+        ] 
+        # Join the remaining lines into a single string, removing newlines and extra spaces
+        clean_answer = " ".join(filtered_lines).strip()
+        # Remove special characters (except spaces, alphanumeric, periods, and commas)
+        clean_answer = re.sub(r'[^\w\s.,]', '', clean_answer)
+        return clean_answer
 
 # Define an instance of ExtractAnswer
 extract_answer_instance = ExtractAnswer()
@@ -429,11 +431,11 @@ def get_rag_response_ollama(query):
     # Step 9: Debug print to check the structure of the result
     print("Debug - Result structure:", result)
 
-    # # Step 10: Extract the answer from the result
-    # answer = extract_answer_instance.run(result)
+    # Step 10: Extract the answer from the result
+    answer = extract_answer_instance.run(result)
 
     # Step 11: Sanitize the output before returning
-    sanitized_answer = scan_output(paraphrased_output, result)
+    sanitized_answer = scan_output(paraphrased_output, answer)
     print("Debug - Context:", context)
     return sanitized_answer
 
