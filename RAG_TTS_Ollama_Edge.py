@@ -27,10 +27,6 @@ langfuse_handler = CallbackHandler(
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-# Check if CUDA is available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
-
 llm = ChatOllama(
     model="mistral:instruct",
     temperature=0.2,
@@ -402,7 +398,7 @@ input_toxicity_scanner = InputToxicity(threshold=0.9, match_type=InputMatchType.
 output_toxicity_scanner = OutputToxicity(threshold=0.9, match_type=OutputMatchType.SENTENCE)
 
 # Initialize the Ban Topics scanner
-ban_topics_scanner = BanTopics(topics=["violence", "politics", "religion"], threshold=0.9)
+ban_topics_scanner = BanTopics(topics=["violence", "religion"], threshold=0.9)
 
 def scan_input(prompt):
     # Scan for prompt injection
