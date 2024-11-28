@@ -106,10 +106,6 @@ from langchain.schema import Document
 #     print(f"Metadata: {doc.metadata}")
 #     print("\n----------------------\n")
 
-# Check if CUDA is available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
-
 from langchain_community.document_loaders import Docx2txtLoader
 # Load two documents
 loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
