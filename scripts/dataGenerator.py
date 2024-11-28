@@ -108,8 +108,8 @@ from langchain.schema import Document
 
 from langchain_community.document_loaders import Docx2txtLoader
 # Load two documents
-loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
-loader2 = Docx2txtLoader("STAFF_INFORMATION_v1.docx") 
+loader1 = Docx2txtLoader("/home/akash/HSv2/CS_OpenDay_General_v3.docx")
+loader2 = Docx2txtLoader("/home/akash/HSv2/STAFF_INFORMATION_v1.docx") 
 
 # Load the documents
 loaded_documents1 = loader1.load()
