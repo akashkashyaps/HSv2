@@ -2,8 +2,8 @@ from ragas.testset.generator import TestsetGenerator
 from ragas.testset.evolutions import simple, reasoning, multi_context, conditional  
 from langchain.text_splitter import RecursiveCharacterTextSplitter  
 # from langchain.document_loaders import SeleniumURLLoader  
-from langchain_community.llms import Ollama  
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import ChatOllama
+from langchain_ollama import OllamaEmbeddings
 import json
 
 # # Define the model name and kwargs for embeddings
@@ -108,18 +108,51 @@ from langchain.schema import Document
 #     print(f"Metadata: {doc.metadata}")
 #     print("\n----------------------\n")
 
+# Check if CUDA is available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
+
 from langchain_community.document_loaders import Docx2txtLoader
+# Load two documents
+loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
+loader2 = Docx2txtLoader("STAFF_INFORMATION_v1.docx") 
 
-loader = Docx2txtLoader("CS_OpenDay_General.docx")
+# Load the documents
+loaded_documents1 = loader1.load()
+loaded_documents2 = loader2.load()
 
-loaded_documents = loader.load()
+# Combine the loaded documents
+loaded_documents = loaded_documents1 + loaded_documents2
 
 
+
+def extract_metadata(text):
+    sections = text.split('Source:')[1:]  # Split by 'Source:' and remove the first empty part
+    all_metadata = []
+    
+    for section in sections:
+        metadata = {}
+        lines = section.split('\n')
+        metadata['source'] = lines[0].strip()
+        
+        for line in lines[1:]:
+            if line.startswith('Metadata:'):
+                metadata['about'] = line.replace('Metadata:', '').strip()
+                break
+        
+        all_metadata.append(metadata)
+    
+    return all_metadata
+
+# After loading documents
+all_metadata = []
 for document in loaded_documents:
-    document.metadata['filename'] = document.metadata['source']
+    # Extract metadata from the document content
+    metadata_list = extract_metadata(document.page_content)
+    all_metadata.extend(metadata_list)
 
-# Recreate the text splitter
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+# text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1900, chunk_overlap=128) 
 
 # Split the loaded documents into chunks
 recreated_splits = text_splitter.split_documents(loaded_documents)
@@ -145,15 +178,26 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-generator_llm = Ollama(model="phi3")  # Creating an instance of Ollama with the "phi3" model
-critic_llm = Ollama(model="llama3")  # Creating an instance of Ollama with the "llama3" model
+generator_llm = ChatOllama(
+    model="mistral:instruct",
+    temperature=0.2,
+    num_predict = 256,
+    frequency_penalty = 0.5,
+    num_ctx = 8192 )    
+
+critic_llm = ChatOllama(
+    model="llama3.1:8b-instruct-q4_0",
+    temperature=0.2,
+    num_predict = 256,
+    frequency_penalty = 0.5,
+    num_ctx = 8192 )    
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
-)  # Creating an instance of OllamaEmbeddings with the "nomic-embed-text" model
+)  
 
-print(generator_llm.invoke('Say hello'))  
-print(critic_llm.invoke('Say hello'))  
+# print(generator_llm.invoke('Say hello'))  
+# print(critic_llm.invoke('Say hello'))  
 
 # r2 = ollama_emb.embed_query(
 #     "What is the second letter of Greek alphabet"
@@ -169,11 +213,11 @@ generator = TestsetGenerator.from_langchain(
 # documents = vectordb.get()
 
 # generate testset
-testset = generator.generate_with_langchain_docs(recreated_splits, test_size=1000, distributions={simple: 0.5, reasoning: 0.20, multi_context: 0.15, conditional: 0.15 }, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
+testset = generator.generate_with_langchain_docs(recreated_splits, test_size=500, distributions={simple: 0.5, reasoning: 0.20, multi_context: 0.15, conditional: 0.15 }, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
 
 test_df = testset.to_pandas()  
-test_df.to_csv('ROBIN_testset2.csv', index=False) 
-import pandas as pd
+test_df.to_csv('Sample_QnA.csv', index=False) 
+# import pandas as pd
 
 # # Function to generate and save test sets in chunks
 # def generate_and_save_testsets(splits, total_samples, filename_prefix):
