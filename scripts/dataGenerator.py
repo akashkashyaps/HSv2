@@ -1,5 +1,4 @@
-from ragas.testset.generator import TestsetGenerator  
-from ragas.testset.evolutions import simple, reasoning, multi_context, conditional  
+from ragas.testset import TestsetGenerator  
 from langchain_text_splitters import RecursiveCharacterTextSplitter  
 from langchain_ollama import ChatOllama
 from langchain_ollama import OllamaEmbeddings
@@ -175,21 +174,14 @@ import torch
 
 # Check if CUDA is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
+print(f'Using device: {device}')  
 
-generator_llm = ChatOllama(
-    model="mistral:instruct",
-    temperature=0.2,
-    num_predict = 256,
-    frequency_penalty = 0.5,
-    num_ctx = 8192 )    
-
-critic_llm = ChatOllama(
+llm = ChatOllama(
     model="llama3.1:8b-instruct-q4_0",
     temperature=0.2,
     num_predict = 256,
     frequency_penalty = 0.5,
-    num_ctx = 8192 )    
+    num_ctx = 10000 )    
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -204,17 +196,14 @@ ollama_emb = OllamaEmbeddings(
 
 # print(f'Embedding dimension: {len(r2)}')  
 
-generator = TestsetGenerator.from_langchain(
-    generator_llm=generator_llm,
-    critic_llm=critic_llm,
-    embeddings=ollama_emb,
-) 
+generator = TestsetGenerator(llm=llm, embedding_model=ollama_emb)
+dataset = generator.generate_with_langchain_docs(recreated_splits, testset_size=10, raise_exceptions=False)
 # documents = vectordb.get()
 
 # generate testset
-testset = generator.generate_with_langchain_docs(recreated_splits, test_size=500, distributions={simple: 0.5, reasoning: 0.20, multi_context: 0.15, conditional: 0.15 }, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
+# testset = generator.generate_with_langchain_docs(recreated_splits, test_size=500, distributions={simple: 0.5, reasoning: 0.20, multi_context: 0.15, conditional: 0.15 }, raise_exceptions=False)  # Generating a testset using the generator and the chunks of documents
 
-test_df = testset.to_pandas()  
+test_df = dataset.to_pandas()  
 test_df.to_csv('Sample_QnA.csv', index=False) 
 # import pandas as pd
 
