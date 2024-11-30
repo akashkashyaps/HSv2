@@ -40,7 +40,7 @@ embeddings = OllamaEmbeddings(
 
 # Load two documents
 loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
-loader2 = Docx2txtLoader("STAFF_INFORMATION_v2.docx") 
+loader2 = Docx2txtLoader("STAFF_INFORMATION_v3.docx") 
 
 # Load the documents
 loaded_documents1 = loader1.load()
