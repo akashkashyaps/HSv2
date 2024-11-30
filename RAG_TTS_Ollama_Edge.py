@@ -317,9 +317,6 @@ Guidelines
 
 Refine the following question according to the guidelines above.
 
-**Question History:**
-{question_history}
-
 **User's Question:**
 {question}
 
@@ -327,7 +324,7 @@ Refine the following question according to the guidelines above.
 [/INST]
 """)
 
-paraphrase_prompt = PromptTemplate(template=paraphrase_template, input_variables=["question_history", "question"])
+paraphrase_prompt = PromptTemplate(template=paraphrase_template, input_variables=["question"])
 
 rag_template = ("""
 [INST]
@@ -442,8 +439,8 @@ def get_rag_response_ollama(query):
     # Step 3: Get the question history from the memory
     question_history = question_memory.get_history()
     # Step 4: Paraphrase the sanitized query using question history
-    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query, "question_history": question_history}, config={"callbacks": [langfuse_handler]})
-    print("Debug - Paraphrased output:", paraphrased_output)
+    paraphrased_output = paraphrase_chain.invoke({"question": sanitized_query}, config={"callbacks": [langfuse_handler]})
+    # print("Debug - Paraphrased output:", paraphrased_output)
     # paraphrased_query = extract_answer_instance.run(paraphrased_output)
     # print("Debug - Paraphrased query:", paraphrased_query)
 
@@ -452,7 +449,7 @@ def get_rag_response_ollama(query):
         paraphrased_output = sanitized_query
 
     # Step 6: Store the original (or paraphrased) query in the memory for future use
-    question_memory.add_question(paraphrased_output)
+    # question_memory.add_question(paraphrased_output)
 
     # Step 7: Retrieve context from vector store using the paraphrased (or original) query
     context = ensemble_retriever.invoke(sanitized_query)
