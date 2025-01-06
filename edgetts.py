@@ -42,5 +42,5 @@ async def generate_voice(
             os.remove(OUTPUT_FILE)
         return {"error": str(e)}
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     uvicorn.run("edgetts:app", host="0.0.0.0", port=8000, reload=True)
