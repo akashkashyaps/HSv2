@@ -429,3 +429,4 @@ if __name__ == "__main__":
 
 # for query in test_queries:
 #     print(f"Query: {query}\nResponse: {groq_response(query)}\n")
+

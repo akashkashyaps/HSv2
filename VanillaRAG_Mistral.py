@@ -212,7 +212,7 @@ Guidelines:
 
 Examples to learn from:
 New Question: "Who is the HOD?"
-Refined Question for RAG: "Who is the Head of the Computer Science Department at Nottingham Trent University?"
+Refined Question for RAG: "Who is the head of the Computer Science department at Nottingham Trent University?"
 
 
 Question History:
@@ -312,7 +312,6 @@ rag_chain = prompt | llm | StrOutputParser()
 # rag_chain = LLMChain(llm=llm, prompt=prompt)
 from langchain_core.runnables import RunnableSequence
 from langchain_core.output_parsers import StrOutputParser
-# rag_chain = prompt | llm | StrOutputParser()
 from llm_guard.input_scanners import PromptInjection, BanTopics, Toxicity as InputToxicity
 from llm_guard.input_scanners.prompt_injection import MatchType as InputMatchType
 from llm_guard.output_scanners import Toxicity as OutputToxicity, NoRefusal, BanTopics

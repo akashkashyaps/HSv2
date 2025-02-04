@@ -1,126 +1,93 @@
-from langchain_community.llms import Ollama  
+from langchain_ollama import ChatOllama
 from langchain_community.embeddings import OllamaEmbeddings
 import torch
 import pandas as pd 
-
+from ragas import evaluate
+from ragas.metrics import (
+    LLMContextPrecisionWithReference,
+    LLMContextRecall,
+    ContextEntityRecall,
+    ResponseRelevancy,
+    Faithfulness,
+    FactualCorrectness,
+    NoiseSensitivity
+)
+from datasets import Dataset
 import nest_asyncio
+
+# Apply nest_asyncio for async support
 nest_asyncio.apply()
 
 # Check if CUDA is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-# llm = Ollama(model="mistral")  
+# List of CSV files to process
+csv_files = [
+    "evaluation_set_FusionPhi3.csv",
+    "evaluation_set_FusionMistral.csv",
+    "evaluation_set_FusionLlama3.csv"
+]
 
-# ollama_emb = OllamaEmbeddings(
-#     model="nomic-embed-text",
-# )  
-
-
-from ragas.metrics import (
-    answer_relevancy,
-    faithfulness,
-    answer_correctness,
-    answer_similarity
-)
-# from ragas.metrics.critique import harmfulness
-# from ragas.metrics.critique import maliciousness
-# from ragas.metrics.critique import coherence
-# from ragas.metrics.critique import conciseness
-from ragas import evaluate
-from datasets import Dataset
-
-# def evaluate_ragas_dataset(ragas_dataset):
-#   result = evaluate(
-#     ragas_dataset,
-#     llm=llm,
-#     embeddings=ollama_emb,
-#     raise_exceptions=False,
-#     metrics=[
-#         faithfulness,
-#         answer_relevancy,
-#         answer_correctness,
-#         answer_similarity
-#     ],
-#   )
-#   return result
-
-
-# # def qualitative_analysis(ragas_dataset):
-# #   result = evaluate(
-# #     ragas_dataset,
-# #     llm=llm,
-# #     embeddings=ollama_emb,
-# #     raise_exceptions=False,
-# #     metrics=[
-# #         harmfulness,
-# #         maliciousness,
-# #         coherence,
-# #         conciseness
-# #     ],
-# #   )
-# #   return result
-
-
-
-# evaluation_set = pd.read_csv("evaluation_set_FusionLlama3.csv")
-# # evaluation_set = evaluation_set.head(5)
-# # Convert the context column to a list of strings
-# evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
-# evaluation_set.drop(columns=["contexts"], inplace=True)
-# evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
-
-
-# from datasets import Dataset
-# dataset = Dataset.from_pandas(evaluation_set)
-
-# quantitative_result_qwen = evaluate_ragas_dataset(dataset)
-# # qualitative_result_qwen = qualitative_analysis(dataset)
-# quantitative_result_qwen.to_pandas().to_csv("Base_FusionLlama3-Evaluator_mistral-quantitative.csv", index=False)
-# # qualitative_result_qwen.to_pandas().to_csv("Base_Mistral7B-Evaluator_Qwen-qualitative.csv", index=False)
-
-# Function to evaluate the dataset using a given model
-def evaluate_ragas_dataset(ragas_dataset, llm, embeddings):
-    result = evaluate(
-        ragas_dataset,
-        llm=llm,
-        embeddings=embeddings,
-        raise_exceptions=False,
-        metrics=[
-            faithfulness,
-            answer_relevancy,
-            answer_correctness,
-            answer_similarity
-        ],
-    )
-    return result
-
-# Load the evaluation dataset
-evaluation_set = pd.read_csv("evaluation_set_FusionPhi3.csv")
-evaluation_set['context'] = evaluation_set['context'].apply(lambda x: [x])
-evaluation_set.drop(columns=["contexts"], inplace=True)
-evaluation_set.rename(columns={"context": "contexts"}, inplace=True)
-
-# Convert to Hugging Face Dataset format
-dataset = Dataset.from_pandas(evaluation_set)
+# Preprocess the dataset to match RAGAS expected format
+def preprocess_dataset(df):
+    dataset = []
+    for _, row in df.iterrows():
+        dataset.append({
+            "question": row["question"],  # User input/query
+            "contexts": [row["context"]],  # Retrieved contexts (as a list)
+            "answer": row["answer"],  # Generated response
+            "ground_truth": row["ground_truth"]  # Reference/expected response
+        })
+    return Dataset.from_pandas(pd.DataFrame(dataset))
 
 # List of models to evaluate
-models = ["internlm2", "llama3", "qwen2", "gemma2", "phi3", "mistral"]  
+models = ["internlm/internlm3-8b-instruct", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M"]  
 
-# Loop through each model and run the evaluation
-for model_name in models:
-    print(f"Starting evaluation for model: {model_name}")
+# Define the metrics to evaluate
+metrics = [
+    LLMContextPrecisionWithReference,  # Context Precision
+    LLMContextRecall,  # Context Recall
+    ContextEntityRecall,  # Context Entities Recall
+    ResponseRelevancy,  # Response Relevancy
+    Faithfulness,  # Faithfulness
+    FactualCorrectness,  # Factual Correctness
+    NoiseSensitivity  # Noise Sensitivity
+]
 
-    # Load the model and embeddings for each run
-    llm = Ollama(model=model_name)  # Initialize the model for each iteration
-    ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
+# Loop through each CSV file
+for csv_file in csv_files:
+    print(f"\nProcessing dataset: {csv_file}")
 
-    # Run RAGAS evaluation
-    quantitative_result = evaluate_ragas_dataset(dataset, llm, ollama_emb)
-    
-    # Save the result to a CSV file with the model name in the file name
-    output_file = f"Base_FusionPhi3-Evaluator_{model_name}-quantitative.csv"
-    quantitative_result.to_pandas().to_csv(output_file, index=False)
-    
-    print(f"Completed evaluation for model: {model_name}")
-    print(f"Results saved to: {output_file}")
+    # Load the evaluation dataset
+    evaluation_set = pd.read_csv(csv_file)
+
+    # Convert the dataset to the required format
+    dataset = preprocess_dataset(evaluation_set)
+
+    # Loop through each model and run the evaluation
+    for model_name in models:
+        print(f"Starting evaluation for model: {model_name}")
+
+        # Load the model and embeddings for each run
+        llm = ChatOllama(
+            model=model_name,
+            temperature=0.6)  # Initialize the model for each iteration
+        ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
+
+        # Run RAGAS evaluation
+        result = evaluate(
+            dataset=dataset,
+            llm=llm,
+            embeddings=ollama_emb,
+            metrics=metrics
+        )
+
+        # Save the result to a CSV file with the model name and dataset name in the file name
+        output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
+        result.to_pandas().to_csv(output_file, index=False)
+        
+        print(f"Completed evaluation for model: {model_name}")
+        print(f"Results saved to: {output_file}")
+
+    print(f"Finished processing dataset: {csv_file}")
