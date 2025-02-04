@@ -18,7 +18,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
 # Define the models to choose from
-models = ["internlm/internlm3-8b-instruct", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0"]
+models = ["internlm2:7b-chat-1m-v2.5-q4_0", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0"]
 
 # Load two documents
 loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
@@ -108,7 +108,7 @@ for model in models:
     print(f"Running model: {model}")
     
     # Initialize the LLM
-    llm = ChatOllama(model=model, temperature=0.2, num_predict=256, frequency_penalty=0.5, num_ctx=8192)
+    llm = ChatOllama(model=model, temperature=0.2, frequency_penalty=0.5)
     
     # Create empty lists to store the results and the time taken
     results = []
