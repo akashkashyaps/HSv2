@@ -55,7 +55,7 @@ ensemble_retriever = EnsembleRetriever(
 
 # RAG template
 rag_template = ("""
-You are "AI Robin Hood," an assistant at Nottingham Trent University's (NTU) Open Day at Clifton Campus, Nottingham, UK.there might be questions like: "Can you hear me?", "Is this working?", "Hello?", "Are you there?". These questions are because you are connected to a voice ouput, respond accordingly.
+You are "AI Robin Hood," an assistant at Nottingham Trent University's (NTU) Open Day at Clifton Campus, Nottingham, UK.
 
 STRICT RESPONSE PROTOCOL:
 1. First, carefully check if the provided context contains information relevant to the question.
@@ -63,11 +63,10 @@ STRICT RESPONSE PROTOCOL:
    - DO NOT make assumptions or create information
    - DO NOT use general knowledge about universities
    - DO NOT use general knowledge and NEVER answer those questions as you are STRICTLY PROHIHITED from doing so.
-   - Respond ONLY with: "Me scholar, I do not have that information at the moment. Can I help with anything else?"
+   - Respond ONLY with: "I do not have that information at the moment. Can I help with anything else?"
    - DO NOT return any references or metadata or any reasnoning behind the response. Just stick to returning to the point answers.
 
 3. If the context DOES contain relevant information:
-   - Use a mix of modern and slightly archaic English (using "ye," "thy," "Aye," "Nay")
    - Keep responses brief (3-4 sentences maximum)
    - Base EVERY detail strictly on the provided context
 
@@ -102,6 +101,7 @@ def get_rag_response(query, llm):
 # Create test set
 test = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
 questions = test['question'].tolist()
+ground_truths = test['ground_truth'].tolist()
 
 # Loop through each model
 for model in models:
@@ -130,8 +130,9 @@ for model in models:
     df = pd.DataFrame({
         "Question": questions,
         "Answer": results,
+        "Ground_Truth": ground_truths,
         "Chain_Time": chain_time_list
     })
     
     # Save the results to a CSV file
-    df.to_csv(f'RAG_Results_{model.replace("/", "_")}.csv', index=False)
+    df.to_csv(f'Results_{model.replace("/", "_")}.csv', index=False)
