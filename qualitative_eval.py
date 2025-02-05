@@ -34,7 +34,7 @@ def preprocess_dataset(df):
     return Dataset.from_pandas(pd.DataFrame(dataset))
 
 # List of models to evaluate
-models = ["internlm/internlm3-8b-instruct", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M"]  
+models = ["lly/InternLM3-8B-Instruct:8b-instruct-q4_0", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M"]  
 
 # Define the metrics to evaluate
 metrics = [
