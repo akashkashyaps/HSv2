@@ -18,7 +18,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
 # Define the models to choose from
-models = ["llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0"]
+models = ["lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]
 
 # Load two documents
 loader1 = Docx2txtLoader("CS_OpenDay_General_v3.docx")
