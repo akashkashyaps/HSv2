@@ -8,7 +8,7 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import Docx2txtLoader
 import torch
 import time
-from typing import List
+from typing import List, Dict, Any
 from datasets import Dataset
 from tqdm import tqdm
 import pandas as pd
@@ -89,14 +89,18 @@ from langchain_core.runnables import RunnablePassthrough
 prompt = PromptTemplate(template=rag_template, input_variables=["context", "question"])
 
 # Function to get RAG response
-def get_rag_response(query, llm):
+def get_rag_response(query: str, llm) -> Dict[str, Any]:
     # Retrieve context from vector store
     context = ensemble_retriever.invoke(query)
     
     # Generate a response using the RAG pipeline
     result = (prompt | llm | StrOutputParser()).invoke({"question": query, "context": context})
     
-    return result
+    # Return both the answer and the retrieved context
+    return {
+        "answer": result,
+        "context": context
+    }
 
 # Create test set
 test = pd.read_csv('ROBIN_FINAL_TEST_SET.csv')
@@ -110,26 +114,30 @@ for model in models:
     # Initialize the LLM
     llm = ChatOllama(model=model, temperature=0.2, frequency_penalty=0.5)
     
-    # Create empty lists to store the results and the time taken
+    # Create empty lists to store the results, context, and the time taken
     results = []
+    contexts = []
     chain_time_list = []
 
     # Loop through each question
     for question in tqdm(questions):
         # Time the chain run process
         start_chain = time.time()
-        result = get_rag_response(question, llm)
+        rag_response = get_rag_response(question, llm)
         end_chain = time.time()
         
         chain_time = end_chain - start_chain
         chain_time_list.append(chain_time)  # Store chain run time
         
-        results.append(result)
+        # Store the answer and context
+        results.append(rag_response["answer"])
+        contexts.append(rag_response["context"])
 
-    # Create a pandas DataFrame to store the results and times taken
+    # Create a pandas DataFrame to store the results, context, and times taken
     df = pd.DataFrame({
         "Question": questions,
         "Answer": results,
+        "Context": contexts,
         "Ground_Truth": ground_truths,
         "Chain_Time": chain_time_list
     })
