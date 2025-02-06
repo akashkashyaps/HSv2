@@ -37,10 +37,10 @@ def preprocess_dataset(df):
     dataset = []
     for _, row in df.iterrows():
         dataset.append({
-            "Question": row["user_input"],  # User input/query
-            "Context": [row["retrieved_contexts"]],  # Retrieved contexts (as a list)
-            "Answer": row["response"],  # Generated response
-            "Ground_Truth": row["reference"]  # Reference/expected response
+            "user_input": row["Question"],  # User input/query
+            "retrieved_contexts": [row["Context"]],  # Retrieved contexts (as a list)
+            "response": row["Answer"],  # Generated response
+            "reference": row["Ground_Truth"]  # Reference/expected response
         })
     return Dataset.from_pandas(pd.DataFrame(dataset))
 
