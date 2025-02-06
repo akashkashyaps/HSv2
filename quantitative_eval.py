@@ -1,5 +1,5 @@
 from langchain_ollama import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 import torch
 import pandas as pd 
 from ragas import evaluate
