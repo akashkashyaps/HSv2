@@ -75,7 +75,8 @@ for csv_file in csv_files:
         # Load the model and embeddings for each run
         llm = ChatOllama(
             model=model_name,
-            temperature=0.6)  # Initialize the model for each iteration
+            temperature=0.1,
+            format="json")  # Initialize the model for each iteration
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
         # Run RAGAS evaluation
