@@ -24,9 +24,12 @@ print(f'Using device: {device}')
 
 # List of CSV files to process
 csv_files = [
-    "evaluation_set_FusionPhi3.csv",
-    "evaluation_set_FusionMistral.csv",
-    "evaluation_set_FusionLlama3.csv"
+    "/home/akash/HSv2/Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
+    "/home/akash/HSv2/Results_mistral:7b-instruct-q4_0.csv",
+    "/home/akash/HSv2/Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
+    "/home/akash/HSv2/Results_gemma2:9b-instruct-q4_0.csv",
+    "/home/akash/HSv2/Results_qwen2.5:7b-instruct-q4_0.csv", 
+    "/home/akash/HSv2/Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
 # Preprocess the dataset to match RAGAS expected format
@@ -34,10 +37,10 @@ def preprocess_dataset(df):
     dataset = []
     for _, row in df.iterrows():
         dataset.append({
-            "question": row["question"],  # User input/query
-            "contexts": [row["context"]],  # Retrieved contexts (as a list)
-            "answer": row["answer"],  # Generated response
-            "ground_truth": row["ground_truth"]  # Reference/expected response
+            "Question": row["user_input"],  # User input/query
+            "Context": [row["retrieved_contexts"]],  # Retrieved contexts (as a list)
+            "Answer": row["response"],  # Generated response
+            "Ground_Truth": row["reference"]  # Reference/expected response
         })
     return Dataset.from_pandas(pd.DataFrame(dataset))
 
