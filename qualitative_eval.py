@@ -1,5 +1,5 @@
 from langchain_ollama import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 import torch
 import pandas as pd 
 from ragas import evaluate
@@ -16,12 +16,12 @@ print(f'Using device: {device}')
 
 # List of CSV files to process
 csv_files = [
-    "/home/akash/HSv2/Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
     "/home/akash/HSv2/Results_mistral:7b-instruct-q4_0.csv",
     "/home/akash/HSv2/Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
     "/home/akash/HSv2/Results_gemma2:9b-instruct-q4_0.csv",
     "/home/akash/HSv2/Results_qwen2.5:7b-instruct-q4_0.csv", 
-    "/home/akash/HSv2/Results_llama3.1:8b-instruct-q4_0.csv"
+    "/home/akash/HSv2/Results_llama3.1:8b-instruct-q4_0.csv",
+    "/home/akash/HSv2/Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv"
 ]
 
 # Preprocess the dataset to match RAGAS expected format
@@ -37,7 +37,7 @@ def preprocess_dataset(df):
     return Dataset.from_pandas(pd.DataFrame(dataset))
 
 # List of models to evaluate
-models = ["lly/InternLM3-8B-Instruct:8b-instruct-q4_0", "llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M"]  
+models = ["llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M", "lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]  
 
 # Define the metrics to evaluate
 metrics = [
