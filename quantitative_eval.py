@@ -49,13 +49,13 @@ models = ["lly/InternLM3-8B-Instruct:8b-instruct-q4_0", "llama3.1:8b-instruct-q4
 
 # Define the metrics to evaluate
 metrics = [
-    LLMContextPrecisionWithReference,  # Context Precision
-    LLMContextRecall,  # Context Recall
-    ContextEntityRecall,  # Context Entities Recall
-    ResponseRelevancy,  # Response Relevancy
-    Faithfulness,  # Faithfulness
-    FactualCorrectness,  # Factual Correctness
-    NoiseSensitivity  # Noise Sensitivity
+    LLMContextPrecisionWithReference(),  # Context Precision
+    LLMContextRecall(),  # Context Recall
+    ContextEntityRecall(),  # Context Entities Recall
+    ResponseRelevancy(),  # Response Relevancy
+    Faithfulness(),  # Faithfulness
+    FactualCorrectness(),  # Factual Correctness
+    NoiseSensitivity()  # Noise Sensitivity
 ]
 
 # Loop through each CSV file
