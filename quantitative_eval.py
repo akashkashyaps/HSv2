@@ -50,10 +50,7 @@ def fixup_required_keys(data: dict, schema: BaseModel) -> dict:
             data["statements"] = ["idk"]
     elif schema.__name__ == "Verdicts":
         if "verdicts" not in data or not data.get("verdicts"):
-            data["verdicts"] = [{"verdict": "idk", "reason": None}]
-    elif schema.__name__ == "Reason":
-        if "reason" not in data or not data.get("reason"):
-            data["reason"] = "idk"
+            data["verdicts"] = [{"verdict": "idk", "reason": "no reason"}]
     # For a general schema, you could loop over schema.__fields__
     # and add defaults if desired.
     return data
