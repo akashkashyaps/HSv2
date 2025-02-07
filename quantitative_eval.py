@@ -1,33 +1,55 @@
 import json
+import re
 from types import SimpleNamespace
+from pydantic import BaseModel
 
-from deepeval import evaluate
-from deepeval.test_case import LLMTestCase
-from deepeval.metrics import (
-    ContextualPrecisionMetric,
-    ContextualRecallMetric,
-    FaithfulnessMetric,
-    AnswerRelevancyMetric,
-    ContextualRelevancyMetric
-)
-from deepeval.models import DeepEvalBaseLLM
-from langchain_ollama import ChatOllama
-import pandas as pd
-import torch
-import nest_asyncio
+# Import your schemas (Statements, Verdicts, Reason, etc.)
+# For example:
+#
+# from your_schema_module import Statements, Verdicts, Reason
 
-# Import the helper from deepeval (if available)
-from deepeval.metrics.utils import trimAndLoadJson
+# A helper to fix up the dictionary for required keys.
+def fixup_required_keys(data: dict, schema: BaseModel):
+    # Determine what key our schema requires.
+    # You can adjust these as needed based on your actual Pydantic models.
+    if schema.__name__ == "Statements":
+        # Expected key: "statements", which should be a nonempty list
+        if "statements" not in data or not data["statements"]:
+            data["statements"] = ["idk"]
+    elif schema.__name__ == "Verdicts":
+        # Expected key: "verdicts", which should be a nonempty list
+        if "verdicts" not in data or not data["verdicts"]:
+            data["verdicts"] = [{"verdict": "idk", "reason": None}]
+    elif schema.__name__ == "Reason":
+        # Expected key: "reason"
+        if "reason" not in data or not data["reason"]:
+            data["reason"] = "idk"
+    return data
 
-nest_asyncio.apply()
-
+def extract_required_json(text: str, expected_keys: list) -> dict:
+    """
+    Attempt to extract a JSON object that contains one of the expected keys.
+    This function uses a simple approach: it looks for the first '{' that, when parsed,
+    results in a dict containing one of the expected keys.
+    """
+    json_objects = re.findall(r'\{.*?\}', text, re.DOTALL)
+    for candidate in json_objects:
+        try:
+            parsed = json.loads(candidate)
+            if any(key in parsed for key in expected_keys):
+                return parsed
+        except Exception:
+            continue
+    # Fallback: return empty dict
+    return {}
 
 def parse_response(response_content, schema=None, debug=True):
     """
     Parse the LLM response content, printing debugging info.
     If a schema is provided, first try to instantiate it.
-    On failure (e.g. if extra keys or missing keys occur), fall back to
-    using trimAndLoadJson to extract a JSON snippet and re-try.
+    On failure or if the expected key is missing, attempt to extract the proper JSON
+    based only on expected keys. In case the required key is not present or empty,
+    populate it with default value(s) ("idk").
     If no schema is provided, returns a SimpleNamespace wrapping the parsed dict.
     """
     if debug:
@@ -39,172 +61,36 @@ def parse_response(response_content, schema=None, debug=True):
             print("DEBUG: Parsed JSON:")
             print(parsed)
     except Exception as e:
-        raise ValueError(f"Error parsing JSON: {response_content}\nError: {e}")
-
+        if debug:
+            print(f"DEBUG: Initial JSON parsing failed: {e}")
+        # Fall back to extracting a JSON object using regex
+        parsed = extract_required_json(response_content, expected_keys=["statements", "verdicts", "reason"])
+        if debug:
+            print("DEBUG: Extracted JSON via fallback:")
+            print(parsed)
+            
     if schema is not None:
         try:
-            # Try to validate with given schema
+            # Fix up parsed data for required keys.
+            parsed = fixup_required_keys(parsed, schema)
             return schema(**parsed)
         except Exception as e:
             if debug:
                 print("DEBUG: Schema validation error:", e)
-                print("DEBUG: Attempting to trim and reload JSON...")
-            try:
-                # Use trimAndLoadJson to try to extract proper JSON from the response.
-                # (The second parameter is typically 'self' in metric code; we pass None here.)
-                trimmed_data = trimAndLoadJson(response_content, None)
-                if debug:
-                    print("DEBUG: Trimmed JSON:")
-                    print(trimmed_data)
-                return schema(**trimmed_data)
-            except Exception as e2:
-                raise ValueError(
-                    f"Error after trimming response content: {response_content}\n"
-                    f"First error: {e}\nSecond error: {e2}"
-                )
+                print("DEBUG: Attempting to extract required JSON from response content...")
+            # Fallback: extract a JSON object that contains the expected key 
+            expected = []
+            if schema.__name__ == "Statements":
+                expected = ["statements"]
+            elif schema.__name__ == "Verdicts":
+                expected = ["verdicts"]
+            elif schema.__name__ == "Reason":
+                expected = ["reason"]
+            trimmed_data = extract_required_json(response_content, expected)
+            if debug:
+                print("DEBUG: Extracted trimmed JSON:")
+                print(trimmed_data)
+            trimmed_data = fixup_required_keys(trimmed_data, schema)
+            return schema(**trimmed_data)
     else:
         return SimpleNamespace(**parsed)
-
-
-# Updated Ollama model wrapper with detailed debugging and fallback JSON extraction
-class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name, debug: bool = True):
-        self.model_name = model_name
-        self.debug = debug
-        # Ensure the model is set to return JSON.
-        self.model = ChatOllama(model=model_name, temperature=0, format="json")
-        
-    def load_model(self):
-        return self.model
-
-    def generate(self, prompt: str, **kwargs):
-        """
-        Synchronous generation: returns a parsed object.
-        If a schema is passed via kwargs, it will be used.
-        """
-        response = self.model.invoke(prompt)
-        schema = kwargs.get("schema", None)
-        return parse_response(response.content, schema, debug=self.debug)
-        
-    async def a_generate(self, prompt: str, **kwargs):
-        """
-        Asynchronous generation: returns a parsed object.
-        If a schema is provided via kwargs, it will be used.
-        """
-        response = await self.model.ainvoke(prompt)
-        schema = kwargs.get("schema", None)
-        return parse_response(response.content, schema, debug=self.debug)
-        
-    def get_model_name(self):
-        return f"Ollama/{self.model_name}"
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-
-# List of CSV files to process
-csv_files = [
-    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
-    "Results_mistral:7b-instruct-q4_0.csv",
-    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
-    "Results_gemma2:9b-instruct-q4_0.csv",
-    "Results_qwen2.5:7b-instruct-q4_0.csv", 
-    "Results_llama3.1:8b-instruct-q4_0.csv"
-]
-
-# Preprocess the dataset to match deepeval expected format
-def preprocess_dataset(df):
-    test_cases = []
-    for _, row in df.iterrows():
-        test_cases.append(
-            LLMTestCase(
-                input=str(row["Question"]),
-                actual_output=str(row["Answer"]),
-                retrieval_context=[str(row["Context"])],
-                expected_output=str(row["Ground_Truth"]),
-            )
-        )
-    return test_cases
-
-# List of models to evaluate
-models = [
-    "mistral:7b-instruct-q4_0",
-    "llama3.1:8b-instruct-q4_0", 
-    "qwen2.5:7b-instruct-q4_0",
-    "gemma2:9b-instruct-q4_0", 
-    "phi3.5:3.8b-mini-instruct-q4_0",
-    "deepseek-r1:7b-qwen-distill-q4_K_M",
-    "deepseek-r1:8b-llama-distill-q4_K_M",
-    "lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
-]
-
-# Define the metrics to evaluate
-def get_metrics(eval_model: DeepEvalBaseLLM):
-    return [
-        ContextualPrecisionMetric(
-            threshold=0.7, 
-            model=eval_model,
-            strict_mode=True,
-        ),
-        ContextualRecallMetric(
-            threshold=0.7,
-            model=eval_model,
-            strict_mode=True,
-        ),
-        FaithfulnessMetric(
-            threshold=0.7,
-            model=eval_model,
-            strict_mode=True,
-        ),
-        AnswerRelevancyMetric(
-            threshold=0.75,
-            model=eval_model,
-            strict_mode=True,
-        ),
-        ContextualRelevancyMetric(
-            threshold=0.7,
-            model=eval_model,
-            strict_mode=True,
-        ),
-    ]
-
-# Modified evaluation loop with detailed debugging
-for csv_file in csv_files:
-    print(f"\nProcessing {csv_file}")
-    df = pd.read_csv(csv_file)
-    test_cases = preprocess_dataset(df)
-    
-    for model_name in models:
-        print(f"\nEvaluating {model_name}")
-        
-        # Initialize model with debugging enabled and set metrics.
-        ollama_model = OllamaModel(model_name, debug=True)
-        metrics = get_metrics(ollama_model)
-        
-        evaluation_result = evaluate(
-            test_cases,
-            metrics=metrics,
-        )
-        
-        # Collect results per test case with metrics.
-        results = []
-        for test_case_result in evaluation_result.results:
-            result_data = {
-                "model": model_name,
-                "dataset": csv_file,
-                "input": test_case_result.input,
-                "actual_output": test_case_result.actual_output,
-                "expected_output": test_case_result.expected_output,
-            }
-            # Add metric scores and reasons.
-            for metric in metrics:
-                metric_name = metric.__class__.__name__
-                result_data[f"{metric_name}_score"] = test_case_result.metric_scores.get(metric_name)
-                result_data[f"{metric_name}_reason"] = test_case_result.metric_reasons.get(metric_name)
-            results.append(result_data)
-        
-        # Save detailed results.
-        results_df = pd.DataFrame(results)
-        output_path = f"{csv_file.replace('.csv', '')}_DeepEval_{model_name}.csv"
-        results_df.to_csv(output_path, index=False)
-        print(f"Saved detailed results to {output_path}")
