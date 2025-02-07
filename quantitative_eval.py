@@ -18,44 +18,60 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-# Revised Ollama model wrapper with proper JSON parsing and attribute conversion.
+# Utility function to parse response content
+def parse_response(response_content, schema=None, debug=True):
+    if debug:
+        print("DEBUG: Raw response content:")
+        print(response_content)
+    try:
+        parsed = json.loads(response_content)
+        if debug:
+            print("DEBUG: Parsed JSON:")
+            print(parsed)
+        if schema is not None:
+            # Assume schema is a Pydantic model, so initialize it with the parsed dict.
+            return schema(**parsed)
+        else:
+            # Return a SimpleNamespace for dot-access.
+            return SimpleNamespace(**parsed)
+    except Exception as e:
+        raise ValueError(f"Error parsing response content: {response_content}\nError: {e}")
+
+# Updated Ollama model wrapper with detailed debugging and proper JSON parsing
 class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name):
+    def __init__(self, model_name, debug: bool = True):
         self.model_name = model_name
+        self.debug = debug
         # Ensure the model is set to return JSON.
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
         
     def load_model(self):
         return self.model
-        
-    def generate(self, prompt: str, **kwargs) -> SimpleNamespace:
-        # Accept additional kwargs without breaking the interface.
+
+    def generate(self, prompt: str, **kwargs):
+        """
+        Synchronous generation that returns a parsed object.
+        If a schema is passed via kwargs (e.g. schema=Statements), that schema will be used.
+        """
         response = self.model.invoke(prompt)
-        try:
-            # Parse the JSON content from the response.
-            parsed_response = json.loads(response.content)
-            # Convert the dictionary to an object for attribute access.
-            result_obj = SimpleNamespace(**parsed_response)
-            return result_obj
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
+        schema = kwargs.get("schema", None)
+        return parse_response(response.content, schema, debug=self.debug)
         
-    async def a_generate(self, prompt: str, **kwargs) -> SimpleNamespace:
-        # Accept additional kwargs if needed.
+    async def a_generate(self, prompt: str, **kwargs):
+        """
+        Asynchronous generation that returns a parsed object.
+        If a schema provided via kwargs (e.g. schema=Statements) it will return that type.
+        """
         response = await self.model.ainvoke(prompt)
-        try:
-            parsed_response = json.loads(response.content)
-            result_obj = SimpleNamespace(**parsed_response)
-            return result_obj
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
+        schema = kwargs.get("schema", None)
+        return parse_response(response.content, schema, debug=self.debug)
         
     def get_model_name(self):
         return f"Ollama/{self.model_name}"
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
+print(f'Using device: {device}')
 
 # List of CSV files to process
 csv_files = [
@@ -67,7 +83,7 @@ csv_files = [
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
-# Preprocess the dataset to match deepeval expected format.
+# Preprocess the dataset to match deepeval expected format
 def preprocess_dataset(df):
     test_cases = []
     for _, row in df.iterrows():
@@ -79,7 +95,7 @@ def preprocess_dataset(df):
         ))
     return test_cases
 
-# List of models to evaluate.
+# List of models to evaluate
 models = [
     "mistral:7b-instruct-q4_0",
     "llama3.1:8b-instruct-q4_0", 
@@ -91,13 +107,13 @@ models = [
     "lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
 ]  
 
-# Define the metrics to evaluate.
+# Define the metrics to evaluate
 def get_metrics(eval_model: DeepEvalBaseLLM):
     return [
         ContextualPrecisionMetric(
             threshold=0.7, 
             model=eval_model,
-            strict_mode=True  # Use Ollama model instead of GPT.
+            strict_mode=True  # Use Ollama model instead of GPT
         ),
         ContextualRecallMetric(
             threshold=0.7,
@@ -121,17 +137,17 @@ def get_metrics(eval_model: DeepEvalBaseLLM):
         )
     ]
 
-# Modified evaluation loop.
+# Modified evaluation loop with detailed debugging
 for csv_file in csv_files:
     print(f"\nProcessing {csv_file}")
     df = pd.read_csv(csv_file)
     test_cases = preprocess_dataset(df)
     
     for model_name in models:
-        print(f"Evaluating {model_name}")
+        print(f"\nEvaluating {model_name}")
         
-        # Initialize model and metrics.
-        ollama_model = OllamaModel(model_name)
+        # Initialize model with debugging enabled and set metrics.
+        ollama_model = OllamaModel(model_name, debug=True)
         metrics = get_metrics(ollama_model)
         
         evaluation_result = evaluate(
@@ -158,7 +174,7 @@ for csv_file in csv_files:
             
             results.append(result_data)
         
-        # Save results.
+        # Save detailed results.
         results_df = pd.DataFrame(results)
         output_path = f"{csv_file.replace('.csv', '')}_DeepEval_{model_name}.csv"
         results_df.to_csv(output_path, index=False)
