@@ -1,3 +1,4 @@
+import json
 from deepeval import evaluate
 from deepeval.test_case import LLMTestCase
 from deepeval.metrics import (
@@ -12,11 +13,10 @@ from langchain_ollama import ChatOllama
 import pandas as pd
 import torch
 import nest_asyncio
-import json
 
 nest_asyncio.apply()
 
-# Improved Ollama model wrapper with proper async support
+# Improved Ollama model wrapper with proper async support and JSON parsing
 class OllamaModel(DeepEvalBaseLLM):
     def __init__(self, model_name):
         self.model_name = model_name
@@ -26,12 +26,23 @@ class OllamaModel(DeepEvalBaseLLM):
         return self.model
         
     def generate(self, prompt: str, **kwargs) -> dict:
+        # Accept **kwargs so that if deepeval tries to pass anything extra, it won't break.
         response = self.model.invoke(prompt)
-        return json.loads(response.content)  # Parse JSON string to dict
+        try:
+            # Attempt to parse response.content as JSON.
+            parsed_response = json.loads(response.content)
+            return parsed_response
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
         
     async def a_generate(self, prompt: str, **kwargs) -> dict:
+        # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
         response = await self.model.ainvoke(prompt)
-        return json.loads(response.content)  # Parse JSON string to dict
+        try:
+            parsed_response = json.loads(response.content)
+            return parsed_response
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
         
     def get_model_name(self):
         return f"Ollama/{self.model_name}"
@@ -63,7 +74,16 @@ def preprocess_dataset(df):
     return test_cases
 
 # List of models to evaluate
-models = ["mistral:7b-instruct-q4_0","llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M","lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]  
+models = [
+    "mistral:7b-instruct-q4_0",
+    "llama3.1:8b-instruct-q4_0", 
+    "qwen2.5:7b-instruct-q4_0",
+    "gemma2:9b-instruct-q4_0", 
+    "phi3.5:3.8b-mini-instruct-q4_0",
+    "deepseek-r1:7b-qwen-distill-q4_K_M",
+    "deepseek-r1:8b-llama-distill-q4_K_M",
+    "lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
+]  
 
 # Define the metrics to evaluate
 def get_metrics(eval_model: DeepEvalBaseLLM):
