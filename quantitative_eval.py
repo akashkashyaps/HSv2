@@ -19,18 +19,40 @@ nest_asyncio.apply()
 class OllamaModel(DeepEvalBaseLLM):
     def __init__(self, model_name):
         self.model_name = model_name
-        self.model = ChatOllama(model=model_name, temperature=0.1, format="json")
+        self.model = ChatOllama(model=model_name, temperature=0, format="json")
         
     def load_model(self):
         return self.model
         
-    def generate(self, prompt: str, **kwargs) -> str:
-        # Accept **kwargs so that if deepeval tries to pass anything extra, it won't break.
-        response = self.model.invoke(prompt)
-        return response.content
-        
-    async def a_generate(self, prompt: str, **kwargs) -> str:
-        # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
+    def generate(self, prompt: str, **kwargs) -> dict:
+    # Provide instructions to produce JSON with a top-level "claims" field
+        modified_prompt = (
+        "You are a JSON-only assistant. "
+        "Return a JSON object with a top-level key 'claims'. "
+        "Example:\n"
+        "{\"claims\": [\"some claim\"]}\n\n"
+        "Your prompt:\n"
+        + prompt
+    )
+        response = self.model.invoke(modified_prompt)
+        raw_text = response.content.strip()
+
+    # Attempt to parse as JSON
+        import json
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError:
+        # If it's not valid JSON, wrap in a simple structure
+            parsed = {"claims": [raw_text]}
+
+    # Guarantee "claims" key always exists
+        if "claims" not in parsed:
+            parsed["claims"] = []
+
+        return parsed   
+     
+    async def a_generate(self, prompt: str, **kwargs) -> dict:
+    # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
         # Possibly incorporate the prompt to yield strictly JSON output:
         # e.g. prompt = "Return valid JSON: " + your_existing_prompt
         response = await self.model.ainvoke(prompt)
