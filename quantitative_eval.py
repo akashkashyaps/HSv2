@@ -77,16 +77,21 @@ for csv_file in csv_files:
 
     # Loop through each model and run the evaluation
     for model_name in models:
-        print(f"Starting evaluation for model: {model_name}")
+        print(f"\nStarting evaluation for model: {model_name}")
 
         # Strong system prompt to produce *only* valid JSON
         llm = ChatOllama(
             model=model_name,
             temperature=0,
             format="json",
-            system="You must strictly return a valid JSON format. Do not include any explanations or additional text."
+            system="You must return a valid JSON object only. Do not include any additional text or commentary. For example: {\"key\": \"value\"}"
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
+
+        # Test a simple query to check the LLM output format
+        test_query = "Please return a valid JSON object with a single key 'result' and a simple value."
+        raw_response = llm.invoke(test_query)
+        print(f"Test response for model {model_name}: {raw_response}")
 
         try:
             result = evaluate(
@@ -97,13 +102,10 @@ for csv_file in csv_files:
             )
         except Exception as e:
             print(f"Evaluation failed for model {model_name}: {e}")
-    
-        # Debug: Capture raw LLM outputs
-            for entry in dataset.to_pandas().to_dict(orient="records")[:5]:  # Show first 5 entries
+            # Debug: Print a few entries from the dataset for context
+            for entry in dataset.to_pandas().to_dict(orient="records")[:5]:
                 print("Debugging entry:", entry)
-    
             continue
-
 
         # Save the result if everything parsed correctly
         output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
