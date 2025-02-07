@@ -41,19 +41,20 @@ class Reason(BaseModel):
 # ----- HELPER FUNCTIONS -----
 def fixup_required_keys(data: dict, schema: BaseModel) -> dict:
     """
-    For a given schema, if the required key(s) are missing or empty,
-    populate them with a default value.
-    This function is general and you can adjust the default values as needed.
+    Improved version that checks for required fields in any schema
     """
-    if schema.__name__ == "Statements":
+    required_fields = list(schema.__fields__.keys())
+
+    if "verdicts" in required_fields:
+        if "verdicts" not in data or not data.get("verdicts"):
+            data["verdicts"] = [{"verdict": "idk", "reason": "default reason"}]
+
+    if "statements" in required_fields:
         if "statements" not in data or not data.get("statements"):
             data["statements"] = ["idk"]
-    elif schema.__name__ == "Verdicts":
-        if "verdicts" not in data or not data.get("verdicts"):
-            data["verdicts"] = [{"verdict": "idk", "reason": "no reason"}]
-    # For a general schema, you could loop over schema.__fields__
-    # and add defaults if desired.
+
     return data
+
 
 def parse_response(response_content: str, schema: BaseModel = None, debug: bool = True):
     """
