@@ -96,25 +96,12 @@ for csv_file in csv_files:
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
-        # Try-except to catch parse errors and log raw responses
-        try:
-            result = evaluate(
-                dataset=dataset,
-                llm=llm,
-                embeddings=ollama_emb,
-                metrics=metrics
+        result = evaluate(
+            dataset=dataset,
+            llm=llm,
+            embeddings=ollama_emb,
+            metrics=metrics
             )
-        except RagasOutputParserException as e:
-            # This exception typically means the LLM's response didn't parse as valid JSON
-            print("***** RAW PARSE ERROR *****")
-            print("RagasOutputParserException: ", e)
-            print("Likely the model did not return valid JSON.")
-            continue
-        except Exception as e:
-            # Log any other exceptions
-            print("***** UNKNOWN EXCEPTION *****")
-            print(e)
-            continue
 
         # Save the result if everything parsed correctly
         output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
