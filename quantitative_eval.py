@@ -14,7 +14,6 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 import nest_asyncio
-from ragas import evaluate, RagasOutputParserException
 
 # Apply nest_asyncio for async support
 nest_asyncio.apply()
