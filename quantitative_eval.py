@@ -1,4 +1,5 @@
-from deepeval import evaluate, LLMTestCase
+from deepeval import evaluate
+from deepeval.test_case import LLMTestCase
 from deepeval.metrics import (
     ContextualPrecisionMetric,
     ContextualRecallMetric,
