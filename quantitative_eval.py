@@ -1,6 +1,5 @@
 import torch
 import pandas as pd
-from pydantic import BaseModel, Extra
 import nest_asyncio
 
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -20,49 +19,33 @@ from ragas.metrics import (
 nest_asyncio.apply()
 
 # Check if CUDA is available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
-# Define the expected output schema using a Pydantic model.
-# Adjust the field names and types if your expected JSON structure is different.
-class EvaluationResult(BaseModel):
-    context_precision: float
-    context_recall: float
-    entity_recall: float
-    response_relevancy: float
-    faithfulness: float
-    factual_correctness: float
-    noise_sensitivity: float
-
-    class Config:
-        # Allow extra keys if the LLM returns additional fields.
-        extra = Extra.allow
-
-# Define a callback to capture the prompts and responses during evaluation.
+# Define a callback to capture prompts and responses during evaluation.
 class TestCallback(BaseCallbackHandler):
-
     def on_llm_start(self, serialized, prompts, **kwargs):
-        print("**********Prompts*********:")
+        print("********** Prompts **********:")
         if prompts:
             print(prompts[0])
         print("\n")
-
+    
     def on_llm_end(self, response, **kwargs):
-        print("**********Response**********:")
+        print("********** Response **********:")
         print(response)
         print("\n")
 
-# List of CSV files to process
+# List of CSV files to process.
 csv_files = [
     "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
     "Results_mistral:7b-instruct-q4_0.csv",
     "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
     "Results_gemma2:9b-instruct-q4_0.csv",
-    "Results_qwen2.5:7b-instruct-q4_0.csv",
+    "Results_qwen2.5:7b-instruct-q4_0.csv", 
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
-# Preprocess the dataset to match RAGAS's expected format
+# Preprocess the dataset to match RAGAS's expected format.
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
     dataset = []
     for _, row in df.iterrows():
@@ -74,7 +57,7 @@ def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
         })
     return EvaluationDataset.from_list(dataset)
 
-# List of models to evaluate
+# List of models to evaluate.
 models = [
     "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
     "llama3.1:8b-instruct-q4_0",
@@ -86,7 +69,7 @@ models = [
     "deepseek-r1:8b-llama-distill-q4_K_M"
 ]
 
-# Define the metrics to evaluate
+# Define the metrics to evaluate.
 metrics = [
     LLMContextPrecisionWithReference(),  # Context Precision
     LLMContextRecall(),                  # Context Recall
@@ -97,33 +80,35 @@ metrics = [
     NoiseSensitivity()                   # Noise Sensitivity
 ]
 
-# Main evaluation loop
+# Main evaluation loop.
 for csv_file in csv_files:
     print(f"\nProcessing dataset: {csv_file}")
-    evaluation_set = pd.read_csv(csv_file)
-    dataset = preprocess_dataset(evaluation_set)
+    df = pd.read_csv(csv_file)
+    dataset = preprocess_dataset(df)
 
-    # Loop through each model and run the evaluation
+    # Loop through each model and run the evaluation.
     for model_name in models:
         print(f"\nStarting evaluation for model: {model_name}")
 
-        # Initialise the LLM with a strict system prompt to produce valid JSON only
+        # Initialise the LLM with a strict system prompt to produce only valid JSON.
         llm = ChatOllama(
             model=model_name,
             temperature=0,
             format="json",
-            system="You must return a valid JSON object only. Do not include any extra text, commentary or formatting. For example: {\"key\": \"value\"}"
+            system=(
+                "You must return a valid JSON object only. Do not include any extra text, commentary, "
+                "or formatting. For example: {\"key\": \"value\"}"
+            )
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
-        # Test query to check LLM output format before full evaluation
+        # Test query to check LLM output format before full evaluation.
         test_query = "Please return a valid JSON object with a single key 'result' and a simple value."
-        raw_response = llm.invoke(test_query)
-        print(f"Test response for model {model_name}: {raw_response}")
+        test_response = llm.invoke(test_query)
+        print(f"Test response for model {model_name}: {test_response}")
 
         try:
-            # Evaluate using the callback to print prompt and output details,
-            # and a run configuration with a timeout and limited retries.
+            # Run the evaluation with the callback and a defined run configuration.
             result = evaluate(
                 dataset=dataset,
                 metrics=metrics,
@@ -135,21 +120,12 @@ for csv_file in csv_files:
             )
         except Exception as e:
             print(f"Evaluation failed for model {model_name}: {e}")
-            # Debug: Print a few entries from the dataset for context
+            # Print a few dataset entries for context.
             for entry in dataset.to_pandas().to_dict(orient="records")[:5]:
-                print("Debugging entry:", entry)
+                print("Debug entry:", entry)
             continue
 
-        # Optionally validate the result using the Pydantic model.
-        try:
-            # Assuming result has a .to_dict() method; adjust if needed.
-            eval_dict = result.to_dict()
-            evaluation_result = EvaluationResult.model_validate(eval_dict)
-            print("Parsed evaluation result:", evaluation_result)
-        except Exception as e:
-            print("Failed to parse evaluation result with Pydantic:", e)
-
-        # Save the result if everything parsed correctly
+        # Save the result if evaluation succeeds.
         output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
         result.to_pandas().to_csv(output_file, index=False)
         print(f"Completed evaluation for model: {model_name}")
