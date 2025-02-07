@@ -40,17 +40,22 @@ class Reason(BaseModel):
 
 # ----- HELPER FUNCTIONS -----
 def fixup_required_keys(data: dict, schema: BaseModel) -> dict:
-    """
-    Improved version that checks for required fields in any schema
-    """
-    required_fields = list(schema.__fields__.keys())
+    required_fields = list(schema.model_fields.keys())
 
     if "verdicts" in required_fields:
-        if "verdicts" not in data or not data.get("verdicts"):
-            data["verdicts"] = [{"verdict": "idk", "reason": "default reason"}]
+        if not data.get("verdicts"):
+            # Create default verdict list WITHOUT reasons
+            data["verdicts"] = [{"verdict": "idk"}]
+            
+        else:
+            # Clean existing entries to match requirements
+            for verdict in data["verdicts"]:
+                if verdict.get("verdict") != "no":
+                    # Remove reason if not "no" verdict
+                    verdict.pop("reason", None)
 
     if "statements" in required_fields:
-        if "statements" not in data or not data.get("statements"):
+        if not data.get("statements"):
             data["statements"] = ["idk"]
 
     return data
@@ -82,7 +87,7 @@ def parse_response(response_content: str, schema: BaseModel = None, debug: bool 
 
     if schema is not None:
         # Determine the set of required keys from the schema.
-        required_keys = list(schema.__fields__.keys())
+        required_keys = list(schema.model_fields.keys())  # New
         # Check if any required key is found
         found = any(key in parsed for key in required_keys)
         if not found:
