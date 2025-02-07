@@ -24,6 +24,7 @@ nest_asyncio.apply()
 class OllamaModel(DeepEvalBaseLLM):
     def __init__(self, model_name):
         self.model_name = model_name
+        self.debug = True
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
 
     def load_model(self):
