@@ -14,6 +14,7 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 import nest_asyncio
+from ragas import evaluate, RagasOutputParserException
 
 # Apply nest_asyncio for async support
 nest_asyncio.apply()
@@ -70,34 +71,52 @@ metrics = [
 # Loop through each CSV file
 for csv_file in csv_files:
     print(f"\nProcessing dataset: {csv_file}")
-
-    # Load the evaluation dataset
     evaluation_set = pd.read_csv(csv_file)
-
-    # Convert the dataset to the required format
     dataset = preprocess_dataset(evaluation_set)
 
     # Loop through each model and run the evaluation
     for model_name in models:
         print(f"Starting evaluation for model: {model_name}")
 
-        # Load the model and embeddings for each run
+        # Strong system prompt to produce *only* valid JSON
         llm = ChatOllama(
             model=model_name,
-            temperature=0.1,
-            format="json"    # Initialize the model for each iteration
+            temperature=0,
+            prefix_messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a JSON-producing assistant. "
+                        "Return strictly valid JSON according to instructions. "
+                        "No additional text should be present outside the JSON."
+                    )
+                }
+            ],
+            format="json"
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
-        # Run RAGAS evaluation
-        result = evaluate(
-            dataset=dataset,
-            llm=llm,
-            embeddings=ollama_emb,
-            metrics=metrics
-        )
+        # Try-except to catch parse errors and log raw responses
+        try:
+            result = evaluate(
+                dataset=dataset,
+                llm=llm,
+                embeddings=ollama_emb,
+                metrics=metrics
+            )
+        except RagasOutputParserException as e:
+            # This exception typically means the LLM's response didn't parse as valid JSON
+            print("***** RAW PARSE ERROR *****")
+            print("RagasOutputParserException: ", e)
+            print("Likely the model did not return valid JSON.")
+            continue
+        except Exception as e:
+            # Log any other exceptions
+            print("***** UNKNOWN EXCEPTION *****")
+            print(e)
+            continue
 
-        # Save the result to a CSV file with the model name and dataset name in the file name
+        # Save the result if everything parsed correctly
         output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
         result.to_pandas().to_csv(output_file, index=False)
 
