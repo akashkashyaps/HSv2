@@ -16,30 +16,43 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-# Improved Ollama model wrapper with proper async support and JSON parsing
+# Improved Ollama model wrapper with debug prints for output inspection
 class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name):
+    def __init__(self, model_name, debug: bool = True):
         self.model_name = model_name
+        self.debug = debug
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
         
     def load_model(self):
         return self.model
         
     def generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval tries to pass anything extra, it won't break.
+        # Accept **kwargs so that if deepeval passes extra parameters, it won't break.
         response = self.model.invoke(prompt)
+        if self.debug:
+            print("DEBUG (sync): Raw response content:")
+            print(response.content)
+        # Attempt to parse the response as JSON
         try:
-            # Attempt to parse response.content as JSON.
             parsed_response = json.loads(response.content)
+            if self.debug:
+                print("DEBUG (sync): Parsed JSON:")
+                print(parsed_response)
             return parsed_response
         except json.JSONDecodeError as e:
             raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
         
     async def a_generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
+        # Accept **kwargs so that if deepeval passes extra parameters, we won't crash.
         response = await self.model.ainvoke(prompt)
+        if self.debug:
+            print("DEBUG (async): Raw response content:")
+            print(response.content)
         try:
             parsed_response = json.loads(response.content)
+            if self.debug:
+                print("DEBUG (async): Parsed JSON:")
+                print(parsed_response)
             return parsed_response
         except json.JSONDecodeError as e:
             raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
@@ -91,7 +104,7 @@ def get_metrics(eval_model: DeepEvalBaseLLM):
         ContextualPrecisionMetric(
             threshold=0.7, 
             model=eval_model,
-            strict_mode=True  # Use Ollama model instead of GPT
+            strict_mode=True
         ),
         ContextualRecallMetric(
             threshold=0.7,
@@ -124,11 +137,10 @@ for csv_file in csv_files:
     for model_name in models:
         print(f"Evaluating {model_name}")
         
-        # Initialize model and metrics
-        ollama_model = OllamaModel(model_name)
+        # Initialize model with debugging enabled and corresponding metrics
+        ollama_model = OllamaModel(model_name, debug=True)
         metrics = get_metrics(ollama_model)
         
-        # Remove 'model=ollama_model' from the call to evaluate
         evaluation_result = evaluate(
             test_cases,
             metrics=metrics
@@ -148,8 +160,8 @@ for csv_file in csv_files:
             # Add metric scores and reasons
             for metric in metrics:
                 metric_name = metric.__class__.__name__
-                result_data[f"{metric_name}_score"] = test_case_result.metric_scores[metric_name]
-                result_data[f"{metric_name}_reason"] = test_case_result.metric_reasons[metric_name]
+                result_data[f"{metric_name}_score"] = test_case_result.metric_scores.get(metric_name)
+                result_data[f"{metric_name}_reason"] = test_case_result.metric_reasons.get(metric_name)
             
             results.append(result_data)
         
