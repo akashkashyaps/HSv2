@@ -64,16 +64,41 @@ def preprocess_dataset(df):
 models = ["llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M","lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]  
 
 # Define the metrics to evaluate
-metrics = [
-    ContextualPrecisionMetric(threshold=0.7, include_reason=True),
-    ContextualRecallMetric(threshold=0.7, include_reason=True),
-    FaithfulnessMetric(threshold=0.7, include_reason=True),
-    AnswerRelevancyMetric(threshold=0.7, include_reason=True),
-    ContextualRelevancyMetric(threshold=0.7, include_reason=True),
-    HallucinationMetric(threshold=0.7, include_reason=True)
-]
+def get_metrics(eval_model: DeepEvalBaseLLM):
+    return [
+        ContextualPrecisionMetric(
+            threshold=0.7, 
+            model=eval_model,  # Use Ollama model instead of GPT
+            include_reason=True
+        ),
+        ContextualRecallMetric(
+            threshold=0.7,
+            model=eval_model,
+            include_reason=True
+        ),
+        FaithfulnessMetric(
+            threshold=0.7,
+            model=eval_model,
+            include_reason=True
+        ),
+        AnswerRelevancyMetric(
+            threshold=0.75,
+            model=eval_model,
+            include_reason=True
+        ),
+        HallucinationMetric(
+            threshold=0.7,
+            model=eval_model,
+            include_reason=True
+        ),
+        ContextualRelevancyMetric(
+            threshold=0.7,
+            model=eval_model,
+            include_reason=True
+        )
+    ]
 
-# Loop through each CSV file
+# Modified evaluation loop
 for csv_file in csv_files:
     print(f"\nProcessing {csv_file}")
     df = pd.read_csv(csv_file)
@@ -81,7 +106,10 @@ for csv_file in csv_files:
     
     for model_name in models:
         print(f"Evaluating {model_name}")
+        
+        # Initialize model and metrics
         ollama_model = OllamaModel(model_name)
+        metrics = get_metrics(ollama_model)  # Create metrics with current model
         
         evaluation_result = evaluate(
             test_cases,
