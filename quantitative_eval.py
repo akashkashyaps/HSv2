@@ -5,8 +5,7 @@ from deepeval.metrics import (
     ContextualRecallMetric,
     FaithfulnessMetric,
     AnswerRelevancyMetric,
-    ContextualRelevancyMetric,
-    HallucinationMetric
+    ContextualRelevancyMetric
 )
 from deepeval.models import DeepEvalBaseLLM
 from langchain_ollama import ChatOllama
@@ -83,11 +82,6 @@ def get_metrics(eval_model: DeepEvalBaseLLM):
         ),
         AnswerRelevancyMetric(
             threshold=0.75,
-            model=eval_model,
-            include_reason=True
-        ),
-        HallucinationMetric(
-            threshold=0.7,
             model=eval_model,
             include_reason=True
         ),
