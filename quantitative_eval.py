@@ -12,6 +12,7 @@ from langchain_ollama import ChatOllama
 import pandas as pd
 import torch
 import nest_asyncio
+import json
 
 nest_asyncio.apply()
 
@@ -25,16 +26,12 @@ class OllamaModel(DeepEvalBaseLLM):
         return self.model
         
     def generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval tries to pass anything extra, it won't break.
         response = self.model.invoke(prompt)
-        return response.content
+        return json.loads(response.content)  # Parse JSON string to dict
         
     async def a_generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
-        # Possibly incorporate the prompt to yield strictly JSON output:
-        # e.g. prompt = "Return valid JSON: " + your_existing_prompt
         response = await self.model.ainvoke(prompt)
-        return response.content
+        return json.loads(response.content)  # Parse JSON string to dict
         
     def get_model_name(self):
         return f"Ollama/{self.model_name}"
