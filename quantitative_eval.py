@@ -25,6 +25,9 @@ class OllamaModel(DeepEvalBaseLLM):
     def __init__(self, model_name):
         self.model_name = model_name
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
+
+    def load_model(self):
+        return self.model
         
     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         response = self.model.invoke(prompt)
