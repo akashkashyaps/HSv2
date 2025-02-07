@@ -114,8 +114,7 @@ for csv_file in csv_files:
         # Remove 'model=ollama_model' from the call to evaluate
         evaluation_result = evaluate(
             test_cases,
-            metrics=metrics,
-            show_progress_bar=True
+            metrics=metrics
         )
         
         # Collect results per test case with metrics
