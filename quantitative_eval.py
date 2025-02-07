@@ -128,7 +128,7 @@ for csv_file in csv_files:
         print(f"\nEvaluating {model_name}")
         
         # Initialize model and metrics.
-        ollama_model = OllamaModel(model_name, debug=True)
+        ollama_model = OllamaModel(model_name)
         metrics = get_metrics(ollama_model)
         
         evaluation_result = evaluate(
