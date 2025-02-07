@@ -20,124 +20,31 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-# ----- SCHEMA DEFINITIONS -----
-# (Make sure these match your actual schemas or adjust as needed.)
-class Statements(BaseModel):
-    statements: list[str]
-
-
-class AnswerRelevancyVerdict(BaseModel):
-    verdict: str  # Expected to be either "yes", "no", or "idk"
-    reason: str | None = None
-
-
-class Verdicts(BaseModel):
-    verdicts: list[AnswerRelevancyVerdict]
-
-
-class Reason(BaseModel):
-    reason: str
-
-# ----- HELPER FUNCTIONS -----
-def fixup_required_keys(data: dict, schema: BaseModel) -> dict:
-    required_fields = list(schema.model_fields.keys())
-
-    if "verdicts" in required_fields:
-        if not data.get("verdicts"):
-            # Create default verdict list WITHOUT reasons
-            data["verdicts"] = [{"verdict": "idk"}]
-            
-        else:
-            # Clean existing entries to match requirements
-            for verdict in data["verdicts"]:
-                if verdict.get("verdict") != "no":
-                    # Remove reason if not "no" verdict
-                    verdict.pop("reason", None)
-
-    if "statements" in required_fields:
-        if not data.get("statements"):
-            data["statements"] = ["idk"]
-
-    return data
-
-
-def parse_response(response_content: str, schema: BaseModel = None, debug: bool = True):
-    """
-    Parse the LLM response content.
-    
-    1. Try to decode the JSON.
-    2. If a schema is provided, check whether any of its required keys are present.
-       (This is determined by looking at the schema’s field names.)
-       – If none are present, ignore the returned JSON (set data = {}).
-    3. “Fix up” the parsed data so that missing or empty required keys are populated with default values.
-    4. Instantiate the schema (if provided) or return a SimpleNamespace.
-    """
-    if debug:
-        print("DEBUG: Raw response content:")
-        print(response_content)
-    try:
-        parsed = json.loads(response_content)
-        if debug:
-            print("DEBUG: Parsed JSON:")
-            print(parsed)
-    except Exception as e:
-        if debug:
-            print("DEBUG: JSON parsing failed:", e)
-        parsed = {}
-
-    if schema is not None:
-        # Determine the set of required keys from the schema.
-        required_keys = list(schema.model_fields.keys())  # New
-        # Check if any required key is found
-        found = any(key in parsed for key in required_keys)
-        if not found:
-            if debug:
-                print(f"DEBUG: None of the required keys {required_keys} found. "
-                      f"Ignoring returned JSON and using default values.")
-            parsed = {}
-
-        fixed = fixup_required_keys(parsed, schema)
-        if debug:
-            print("DEBUG: Fixed parsed JSON:")
-            print(fixed)
-        try:
-            return schema(**fixed)
-        except Exception as e:
-            raise ValueError(f"Error instantiating schema with data: {fixed}\nError: {e}")
-    else:
-        return SimpleNamespace(**parsed)
-
 # ----- MODEL WRAPPER -----
 class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name, debug: bool = True):
+    def __init__(self, model_name):
         self.model_name = model_name
-        self.debug = debug
-        # Force the LLM to return JSON.
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
         
-    def load_model(self):
-        return self.model
-        
-    def generate(self, prompt: str, **kwargs):
-        """
-        Synchronously call the LLM and parse its response.
-        Optionally pass a "schema" via kwargs for automatic validation and fixup.
-        """
+    def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         response = self.model.invoke(prompt)
-        schema = kwargs.get("schema", None)
-        return parse_response(response.content, schema, debug=self.debug)
+        return self._handle_response(response.content, schema)
         
-    async def a_generate(self, prompt: str, **kwargs):
-        """
-        Asynchronously call the LLM and parse its response.
-        Optionally pass a "schema" via kwargs.
-        """
+    async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         response = await self.model.ainvoke(prompt)
-        schema = kwargs.get("schema", None)
-        return parse_response(response.content, schema, debug=self.debug)
+        return self._handle_response(response.content, schema)
         
     def get_model_name(self):
         return f"Ollama/{self.model_name}"
+
+    def _handle_response(self, content: str, schema: BaseModel):
+        try:
+            # Attempt direct JSON parsing
+            parsed = json.loads(content)
+            return schema(**parsed)
+        except Exception as e:
+            # Fallback to empty schema if parsing fails
+            return schema()
 
 # ----- MAIN SCRIPT -----
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
