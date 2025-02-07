@@ -13,6 +13,7 @@ from ragas.metrics import (
     NoiseSensitivity
 )
 from datasets import Dataset
+from ragas import EvaluationDataset
 import nest_asyncio
 
 # Apply nest_asyncio for async support
@@ -42,7 +43,11 @@ def preprocess_dataset(df):
             "response": row["Answer"],            # Generated response
             "reference": row["Ground_Truth"]      # Reference/expected response
         })
-    return Dataset.from_pandas(pd.DataFrame(dataset))
+        Dataset.from_pandas(pd.DataFrame(dataset))
+        evaluation_dataset = EvaluationDataset.from_list(dataset)
+        return evaluation_dataset
+
+from ragas import EvaluationDataset
 
 # List of models to evaluate
 models = [
@@ -81,16 +86,6 @@ for csv_file in csv_files:
         llm = ChatOllama(
             model=model_name,
             temperature=0,
-            prefix_messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a JSON-producing assistant. "
-                        "Return strictly valid JSON according to instructions. "
-                        "No additional text should be present outside the JSON."
-                    )
-                }
-            ],
             format="json"
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
