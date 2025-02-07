@@ -109,12 +109,12 @@ for csv_file in csv_files:
         
         # Initialize model and metrics
         ollama_model = OllamaModel(model_name)
-        metrics = get_metrics(ollama_model)  # Create metrics with current model
+        metrics = get_metrics(ollama_model)
         
+        # Remove 'model=ollama_model' from the call to evaluate
         evaluation_result = evaluate(
             test_cases,
             metrics=metrics,
-            model=ollama_model,
             show_progress_bar=True
         )
         
