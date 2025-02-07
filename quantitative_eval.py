@@ -1,4 +1,6 @@
 import json
+from types import SimpleNamespace
+
 from deepeval import evaluate
 from deepeval.test_case import LLMTestCase
 from deepeval.metrics import (
@@ -16,44 +18,35 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
-# Improved Ollama model wrapper with debug prints for output inspection
+# Revised Ollama model wrapper with proper JSON parsing and attribute conversion.
 class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name, debug: bool = True):
+    def __init__(self, model_name):
         self.model_name = model_name
-        self.debug = debug
+        # Ensure the model is set to return JSON.
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
         
     def load_model(self):
         return self.model
         
-    def generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval passes extra parameters, it won't break.
+    def generate(self, prompt: str, **kwargs) -> SimpleNamespace:
+        # Accept additional kwargs without breaking the interface.
         response = self.model.invoke(prompt)
-        if self.debug:
-            print("DEBUG (sync): Raw response content:")
-            print(response.content)
-        # Attempt to parse the response as JSON
         try:
+            # Parse the JSON content from the response.
             parsed_response = json.loads(response.content)
-            if self.debug:
-                print("DEBUG (sync): Parsed JSON:")
-                print(parsed_response)
-            return parsed_response
+            # Convert the dictionary to an object for attribute access.
+            result_obj = SimpleNamespace(**parsed_response)
+            return result_obj
         except json.JSONDecodeError as e:
             raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
         
-    async def a_generate(self, prompt: str, **kwargs) -> dict:
-        # Accept **kwargs so that if deepeval passes extra parameters, we won't crash.
+    async def a_generate(self, prompt: str, **kwargs) -> SimpleNamespace:
+        # Accept additional kwargs if needed.
         response = await self.model.ainvoke(prompt)
-        if self.debug:
-            print("DEBUG (async): Raw response content:")
-            print(response.content)
         try:
             parsed_response = json.loads(response.content)
-            if self.debug:
-                print("DEBUG (async): Parsed JSON:")
-                print(parsed_response)
-            return parsed_response
+            result_obj = SimpleNamespace(**parsed_response)
+            return result_obj
         except json.JSONDecodeError as e:
             raise ValueError(f"Could not parse JSON from response: {response.content}. Error: {e}")
         
@@ -62,7 +55,7 @@ class OllamaModel(DeepEvalBaseLLM):
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
+print(f"Using device: {device}")
 
 # List of CSV files to process
 csv_files = [
@@ -74,7 +67,7 @@ csv_files = [
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
-# Preprocess the dataset to match deepeval expected format
+# Preprocess the dataset to match deepeval expected format.
 def preprocess_dataset(df):
     test_cases = []
     for _, row in df.iterrows():
@@ -86,7 +79,7 @@ def preprocess_dataset(df):
         ))
     return test_cases
 
-# List of models to evaluate
+# List of models to evaluate.
 models = [
     "mistral:7b-instruct-q4_0",
     "llama3.1:8b-instruct-q4_0", 
@@ -98,13 +91,13 @@ models = [
     "lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
 ]  
 
-# Define the metrics to evaluate
+# Define the metrics to evaluate.
 def get_metrics(eval_model: DeepEvalBaseLLM):
     return [
         ContextualPrecisionMetric(
             threshold=0.7, 
             model=eval_model,
-            strict_mode=True
+            strict_mode=True  # Use Ollama model instead of GPT.
         ),
         ContextualRecallMetric(
             threshold=0.7,
@@ -128,7 +121,7 @@ def get_metrics(eval_model: DeepEvalBaseLLM):
         )
     ]
 
-# Modified evaluation loop
+# Modified evaluation loop.
 for csv_file in csv_files:
     print(f"\nProcessing {csv_file}")
     df = pd.read_csv(csv_file)
@@ -137,8 +130,8 @@ for csv_file in csv_files:
     for model_name in models:
         print(f"Evaluating {model_name}")
         
-        # Initialize model with debugging enabled and corresponding metrics
-        ollama_model = OllamaModel(model_name, debug=True)
+        # Initialize model and metrics.
+        ollama_model = OllamaModel(model_name)
         metrics = get_metrics(ollama_model)
         
         evaluation_result = evaluate(
@@ -146,7 +139,7 @@ for csv_file in csv_files:
             metrics=metrics
         )
         
-        # Collect results per test case with metrics
+        # Collect results per test case with metrics.
         results = []
         for test_case_result in evaluation_result.results:
             result_data = {
@@ -157,7 +150,7 @@ for csv_file in csv_files:
                 "expected_output": test_case_result.expected_output
             }
             
-            # Add metric scores and reasons
+            # Add metric scores and reasons.
             for metric in metrics:
                 metric_name = metric.__class__.__name__
                 result_data[f"{metric_name}_score"] = test_case_result.metric_scores.get(metric_name)
@@ -165,7 +158,7 @@ for csv_file in csv_files:
             
             results.append(result_data)
         
-        # Save results with improved formatting
+        # Save results.
         results_df = pd.DataFrame(results)
         output_path = f"{csv_file.replace('.csv', '')}_DeepEval_{model_name}.csv"
         results_df.to_csv(output_path, index=False)
