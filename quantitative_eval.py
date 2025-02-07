@@ -43,11 +43,9 @@ def preprocess_dataset(df):
             "response": row["Answer"],            # Generated response
             "reference": row["Ground_Truth"]      # Reference/expected response
         })
-        Dataset.from_pandas(pd.DataFrame(dataset))
-        evaluation_dataset = EvaluationDataset.from_list(dataset)
-        return evaluation_dataset
+    
+    return EvaluationDataset.from_list(dataset)
 
-from ragas import EvaluationDataset
 
 # List of models to evaluate
 models = [
