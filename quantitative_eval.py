@@ -96,7 +96,7 @@ for csv_file in csv_files:
             )
 
         # Save the result if everything parsed correctly
-        output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
+        output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
         result.to_pandas().to_csv(output_file, index=False)
 
         print(f"Completed evaluation for model: {model_name}")
