@@ -12,7 +12,6 @@ from ragas.metrics import (
     FactualCorrectness,
     NoiseSensitivity
 )
-from datasets import Dataset
 from ragas import EvaluationDataset
 import nest_asyncio
 
@@ -84,16 +83,27 @@ for csv_file in csv_files:
         llm = ChatOllama(
             model=model_name,
             temperature=0,
-            format="json"
+            format="json",
+            system="You must strictly return a valid JSON format. Do not include any explanations or additional text."
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
-        result = evaluate(
-            dataset=dataset,
-            llm=llm,
-            embeddings=ollama_emb,
-            metrics=metrics
+        try:
+            result = evaluate(
+                dataset=dataset,
+                llm=llm,
+                embeddings=ollama_emb,
+                metrics=metrics
             )
+        except Exception as e:
+            print(f"Evaluation failed for model {model_name}: {e}")
+    
+        # Debug: Capture raw LLM outputs
+            for entry in dataset.to_pandas().to_dict(orient="records")[:5]:  # Show first 5 entries
+                print("Debugging entry:", entry)
+    
+            continue
+
 
         # Save the result if everything parsed correctly
         output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
