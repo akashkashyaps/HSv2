@@ -20,36 +20,59 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
+# ----- HELPER FUNCTIONS -----
+def fixup_required_keys(data: dict, schema: BaseModel) -> dict:
+    required_fields = list(schema.model_fields.keys())
+    
+    if "verdicts" in required_fields:
+        if not data.get("verdicts"):
+            data["verdicts"] = [{"verdict": "idk"}]
+        else:
+            for verdict in data["verdicts"]:
+                if "reason" not in verdict:
+                    verdict["reason"] = ""  # Maintain required field structure
+
+    if "statements" in required_fields:
+        if not data.get("statements"):
+            data["statements"] = ["idk"]
+
+    return data
+
+def parse_response(response_content: str, schema: BaseModel, debug: bool = True):
+    try:
+        parsed = json.loads(response_content)
+    except json.JSONDecodeError:
+        parsed = {}
+
+    fixed = fixup_required_keys(parsed, schema)
+    
+    try:
+        return schema(**fixed)
+    except Exception as e:
+        if debug:
+            print(f"Validation error: {e}")
+        return schema(**schema().dict())  # Fallback with schema defaults
+
 # ----- MODEL WRAPPER -----
 class OllamaModel(DeepEvalBaseLLM):
-    def __init__(self, model_name):
+    def __init__(self, model_name, debug: bool = True):
         self.model_name = model_name
-        self.debug = True
+        self.debug = debug
         self.model = ChatOllama(model=model_name, temperature=0, format="json")
-
+        
     def load_model(self):
         return self.model
         
     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         response = self.model.invoke(prompt)
-        return self._handle_response(response.content, schema)
+        return parse_response(response.content, schema, self.debug)
         
     async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         response = await self.model.ainvoke(prompt)
-        return self._handle_response(response.content, schema)
+        return parse_response(response.content, schema, self.debug)
         
     def get_model_name(self):
         return f"Ollama/{self.model_name}"
-
-    def _handle_response(self, content: str, schema: BaseModel):
-        try:
-            # Attempt direct JSON parsing
-            parsed = json.loads(content)
-            return schema(**parsed)
-        except Exception as e:
-            # Fallback to empty schema if parsing fails
-            return schema()
-
 # ----- MAIN SCRIPT -----
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
