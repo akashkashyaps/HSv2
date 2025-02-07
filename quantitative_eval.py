@@ -73,28 +73,23 @@ def get_metrics(eval_model: DeepEvalBaseLLM):
     return [
         ContextualPrecisionMetric(
             threshold=0.7, 
-            model=eval_model,  # Use Ollama model instead of GPT
-            include_reason=True
+            model=eval_model # Use Ollama model instead of GPT
         ),
         ContextualRecallMetric(
             threshold=0.7,
-            model=eval_model,
-            include_reason=True
+            model=eval_model
         ),
         FaithfulnessMetric(
             threshold=0.7,
-            model=eval_model,
-            include_reason=True
+            model=eval_model
         ),
         AnswerRelevancyMetric(
             threshold=0.75,
-            model=eval_model,
-            include_reason=True
+            model=eval_model
         ),
         ContextualRelevancyMetric(
             threshold=0.7,
-            model=eval_model,
-            include_reason=True
+            model=eval_model
         )
     ]
 
