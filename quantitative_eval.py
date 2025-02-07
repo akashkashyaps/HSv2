@@ -19,20 +19,26 @@ nest_asyncio.apply()
 class OllamaModel(DeepEvalBaseLLM):
     def __init__(self, model_name):
         self.model_name = model_name
-        self.model = ChatOllama(model=model_name, temperature=0.6)
+        self.model = ChatOllama(model=model_name, temperature=0.1, format="json")
         
     def load_model(self):
         return self.model
         
-    def generate(self, prompt: str) -> str:
-        return self.model.invoke(prompt).content
+    def generate(self, prompt: str, **kwargs) -> str:
+        # Accept **kwargs so that if deepeval tries to pass anything extra, it won't break.
+        response = self.model.invoke(prompt)
+        return response.content
         
-    async def a_generate(self, prompt: str) -> str:
+    async def a_generate(self, prompt: str, **kwargs) -> str:
+        # Accept **kwargs so that if deepeval tries passing schema=..., we won't crash.
+        # Possibly incorporate the prompt to yield strictly JSON output:
+        # e.g. prompt = "Return valid JSON: " + your_existing_prompt
         response = await self.model.ainvoke(prompt)
         return response.content
         
     def get_model_name(self):
-        return f"Ollama/{self.model_name}"  # Use stored model name
+        return f"Ollama/{self.model_name}"
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
@@ -60,7 +66,7 @@ def preprocess_dataset(df):
     return test_cases
 
 # List of models to evaluate
-models = ["llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0", "mistral:7b-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M","lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]  
+models = ["mistral:7b-instruct-q4_0","llama3.1:8b-instruct-q4_0", "qwen2.5:7b-instruct-q4_0", "gemma2:9b-instruct-q4_0", "phi3.5:3.8b-mini-instruct-q4_0","deepseek-r1:7b-qwen-distill-q4_K_M","deepseek-r1:8b-llama-distill-q4_K_M","lly/InternLM3-8B-Instruct:8b-instruct-q4_0"]  
 
 # Define the metrics to evaluate
 def get_metrics(eval_model: DeepEvalBaseLLM):
