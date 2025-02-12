@@ -10,7 +10,7 @@ from datetime import datetime
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.callbacks import BaseCallbackHandler
 from ragas import evaluate, EvaluationDataset, RunConfig
-from ragas.llms.langchain import LangchainLLMWrapper
+from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import (
     LLMContextPrecisionWithReference,
     LLMContextRecall,
