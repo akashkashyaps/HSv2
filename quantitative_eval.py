@@ -54,8 +54,13 @@ class EnhancedCallback(BaseCallbackHandler):
         except Exception as e:
             logging.error(f"Failed to log response: {str(e)}")
 
-def create_wrapped_llm(model_name: str) -> LangchainLLMWrapper:
-    """Create a LangchainLLMWrapper with ChatOllama."""
+class CustomLangchainWrapper(LangchainLLMWrapper):
+    def invoke(self, prompt: str) -> str:
+        """Override invoke method to use predict instead."""
+        return self.llm.predict(prompt)
+
+def create_wrapped_llm(model_name: str) -> CustomLangchainWrapper:
+    """Create a CustomLangchainWrapper with ChatOllama."""
     base_llm = ChatOllama(
         model=model_name,
         temperature=0,
@@ -67,7 +72,7 @@ def create_wrapped_llm(model_name: str) -> LangchainLLMWrapper:
             "4. Focus on accuracy and relevance in evaluations"
         )
     )
-    return LangchainLLMWrapper(base_llm)
+    return CustomLangchainWrapper(base_llm)
 
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
     """Prepare dataset for RAGAS evaluation."""
@@ -160,18 +165,16 @@ def main():
         "deepseek-r1:8b-llama-distill-q4_K_M"
     ]
     
-    # Initialize wrapped LLM for metrics
-    wrapped_base_llm = create_wrapped_llm(models[0])
-    
     # Initialize metrics with wrapped LLM
+    base_llm = create_wrapped_llm(models[0])
     metrics = [
-        LLMContextPrecisionWithReference(llm=wrapped_base_llm),
-        LLMContextRecall(llm=wrapped_base_llm),
-        ContextEntityRecall(llm=wrapped_base_llm),
-        ResponseRelevancy(llm=wrapped_base_llm),
-        Faithfulness(llm=wrapped_base_llm),
-        FactualCorrectness(llm=wrapped_base_llm),
-        NoiseSensitivity(llm=wrapped_base_llm)
+        LLMContextPrecisionWithReference(llm=base_llm),
+        LLMContextRecall(llm=base_llm),
+        ContextEntityRecall(llm=base_llm),
+        ResponseRelevancy(llm=base_llm),
+        Faithfulness(llm=base_llm),
+        FactualCorrectness(llm=base_llm),
+        NoiseSensitivity(llm=base_llm)
     ]
     
     # Validate models
