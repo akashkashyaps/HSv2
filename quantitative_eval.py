@@ -1,9 +1,10 @@
 import torch
 import pandas as pd
 import nest_asyncio
-
-from mlx_lm import load, generate
-from ragas import evaluate, EvaluationDataset, RunConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from langchain_huggingface import HuggingFacePipeline
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from ragas import evaluate, EvaluationDataset
 from ragas.metrics import (
     LLMContextPrecisionWithReference,
     LLMContextRecall,
@@ -14,127 +15,115 @@ from ragas.metrics import (
     NoiseSensitivity
 )
 
-# Apply nest_asyncio for asynchronous support
 nest_asyncio.apply()
 
-# Check if CUDA is available
+# Configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-##################################################
-# 1) Preprocessing the dataset for RAGAS
-##################################################
+# Quantization config for 4-bit loading
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16
+)
+
+# Updated models list with Hugging Face models
+models = [
+    "unsloth/Meta-Llama-3.1-8B-Instruct-unsloth-bnb-4bit",
+    "unsloth/Qwen2.5-7B-Instruct-bnb-4bit",
+    "unsloth/mistral-7b-instruct-v0.3-bnb-4bit",
+    "unsloth/gemma-2-9b-it-bnb-4bit",
+    "unsloth/Phi-3.5-mini-instruct-bnb-4bit",
+    "unsloth/DeepSeek-R1-Distill-Llama-8B-unsloth-bnb-4bit",
+    "unsloth/DeepSeek-R1-Distill-Qwen-7B-unsloth-bnb-4bit"
+]
+
+# CSV files should be updated to match model names
+csv_files = [f"Results_{model.replace('/', '_').replace('-', '_')}.csv" for model in models]
+
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
+    # Same preprocessing as before
     dataset = []
     for _, row in df.iterrows():
         dataset.append({
-            "user_input": row["Question"],            # User input/query
-            "retrieved_contexts": [row["Context"]],   # Retrieved contexts as a list
-            "response": row["Answer"],                # Generated response
-            "reference": row["Ground_Truth"]          # Reference/expected response
+            "user_input": row["Question"],
+            "retrieved_contexts": [row["Context"]],
+            "response": row["Answer"],
+            "reference": row["Ground_Truth"]
         })
     return EvaluationDataset.from_list(dataset)
 
-##################################################
-# 2) Define the metrics
-##################################################
+def create_pipeline(model_name):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        quantization_config=bnb_config,
+        device_map="auto",
+        trust_remote_code=True
+    )
+    
+    return pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        device=device,
+        max_new_tokens=512,
+        do_sample=False,
+        return_full_text=False
+    )
+
 metrics = [
-    LLMContextPrecisionWithReference(),  # Context Precision
-    LLMContextRecall(),                  # Context Recall
-    ContextEntityRecall(),               # Context Entities Recall
-    ResponseRelevancy(),                 # Response Relevancy
-    Faithfulness(),                      # Faithfulness
-    FactualCorrectness(),                # Factual Correctness
-    NoiseSensitivity()                   # Noise Sensitivity
+    LLMContextPrecisionWithReference(),
+    LLMContextRecall(),
+    ContextEntityRecall(),
+    ResponseRelevancy(),
+    Faithfulness(),
+    FactualCorrectness(),
+    NoiseSensitivity()
 ]
 
-##################################################
-# 3) List of CSV files to evaluate
-##################################################
-csv_files = [
-    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
-    "Results_mistral:7b-instruct-q4_0.csv",
-    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
-    "Results_gemma2:9b-instruct-q4_0.csv",
-    "Results_qwen2.5:7b-instruct-q4_0.csv",
-    "Results_llama3.1:8b-instruct-q4_0.csv"
-]
-
-##################################################
-# 4) List of MLX models
-##################################################
-models = [
-    "mlx-community/internlm3-8b-instruct-4bit",
-    "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
-    "mlx-community/Phi-3.5-mini-instruct-4bit",
-    "mlx-community/gemma-2-9b-it-4bit",
-    "mlx-community/Qwen2.5-7B-Instruct-1M-4bit",
-    "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit"
-]
-
-##################################################
-# 5) Main evaluation loop (no callbacks used)
-##################################################
 for csv_file in csv_files:
     print(f"\nProcessing dataset: {csv_file}")
-    try:
-        df = pd.read_csv(csv_file)
-    except FileNotFoundError:
-        print(f"File not found: {csv_file}")
-        continue
-
-    # Convert CSV to RAGAS dataset
+    df = pd.read_csv(csv_file)
     dataset = preprocess_dataset(df)
 
     for model_name in models:
-        print(f"\nStarting evaluation for MLX model: {model_name}")
-
-        # Load model & tokenizer from mlx-community
-        model, tokenizer = load(model_name)
-
-        # Prepare an LLM-like function for RAGAS to call
-        def llm_fn(input_text: str) -> str:
-            # If the tokenizer has a chat template, apply it
-            if tokenizer.chat_template is not None:
-                messages = [{"role": "user", "content": input_text}]
-                prompt = tokenizer.apply_chat_template(
-                    messages, add_generation_prompt=True
-                )
-            else:
-                prompt = input_text
-            # Generate the output
-            return generate(model, tokenizer, prompt=prompt, verbose=False).strip()
+        print(f"\nStarting evaluation for model: {model_name}")
 
         try:
-            # Evaluate with RAGAS
+            # Create Hugging Face pipeline
+            pipe = create_pipeline(model_name)
+            llm = HuggingFacePipeline(pipeline=pipe)
+            
+            # Use all-MiniLM-L6-v2 for embeddings
+            embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={"device": device}
+            )
+
+            # Test the model
+            test_query = "Please return a valid JSON object with a single key 'result' and a simple value."
+            test_response = llm.invoke(test_query)
+            print(f"Test response: {test_response}")
+
+            # Run evaluation
             result = evaluate(
                 dataset=dataset,
                 metrics=metrics,
-                llm=llm_fn,                 # Use our custom function for generation
-                embeddings=None,            # If you need embeddings, provide them here
-                raise_exceptions=True,
-                run_config=RunConfig(
-                    timeout=10, 
-                    max_retries=1, 
-                    max_wait=60, 
-                    max_workers=1
-                )
+                llm=llm,
+                embeddings=embeddings,
+                raise_exceptions=True
             )
 
-            # Save the evaluation results
-            output_file = (
-                f"/home/akash/HSv2/"
-                f"{csv_file.replace('.csv', '')}_Evaluator_"
-                f"{model_name.replace('/', '_')}_quantitative.csv"
-            )
+            # Save results
+            output_file = f"/path/to/results/{model_name.replace('/', '_')}_evaluation.csv"
             result.to_pandas().to_csv(output_file, index=False)
-            print(f"Completed evaluation for model: {model_name}")
-            print(f"Results saved to: {output_file}")
+            print(f"Evaluation completed for {model_name}")
 
         except Exception as e:
-            print(f"Evaluation failed for model {model_name}: {e}")
-            # Optionally print a few dataset entries to debug
-            for entry in dataset.to_pandas().head(3).to_dict(orient="records"):
-                print("Debug entry:", entry)
+            print(f"Error evaluating {model_name}: {str(e)}")
+            continue
 
-    print(f"Finished processing dataset: {csv_file}")
+print("All evaluations completed!")
