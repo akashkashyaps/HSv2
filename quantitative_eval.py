@@ -21,14 +21,6 @@ nest_asyncio.apply()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Quantization config for 4-bit loading
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.bfloat16
-)
-
 # Updated models list with Hugging Face models
 models = [
     "unsloth/Meta-Llama-3.1-8B-Instruct-unsloth-bnb-4bit",
@@ -59,7 +51,6 @@ def create_pipeline(model_name):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        quantization_config=bnb_config,
         device_map="auto",
         trust_remote_code=True
     )
