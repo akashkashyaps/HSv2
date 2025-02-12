@@ -388,27 +388,27 @@ class MetricEvaluator:
         return {
             'noise_sensitivity': PromptTemplate(
                 input_variables=["user_input", "reference", "response", "retrieved_contexts"],
-                template=noise_sensitivity_template
+                template=replace_double_braces(noise_sensitivity_template)
             ),
             'faithfulness': PromptTemplate(
                 input_variables=["user_input", "response", "retrieved_contexts"],
-                template=faithfulness_template
+                template=replace_double_braces(faithfulness_template)
             ),
             'response_relevancy': PromptTemplate(
                 input_variables=["user_input", "response"],
-                template=response_relevancy_template
+                template=replace_double_braces(response_relevancy_template)
             ),
             'context_entities_recall': PromptTemplate(
                 input_variables=["reference", "retrieved_contexts"],
-                template=context_entities_recall_template
+                template=replace_double_braces(context_entities_recall_template)
             ),
             'context_recall': PromptTemplate(
                 input_variables=["user_input", "reference", "retrieved_contexts"],
-                template=context_recall_template
+                template=replace_double_braces(context_recall_template)
             ),
             'context_precision': PromptTemplate(
                 input_variables=["user_input", "reference", "retrieved_contexts"],
-                template=context_precision_template
+                template=replace_double_braces(context_precision_template)
             )
         }
     
