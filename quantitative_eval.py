@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import nest_asyncio
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, pipeline
 from langchain_huggingface import HuggingFacePipeline
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from ragas import evaluate, EvaluationDataset
@@ -41,7 +41,14 @@ models = [
 ]
 
 # CSV files should be updated to match model names
-csv_files = [f"Results_{model.replace('/', '_').replace('-', '_')}.csv" for model in models]
+csv_files = [
+    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
+    "Results_mistral:7b-instruct-q4_0.csv",
+    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
+    "Results_gemma2:9b-instruct-q4_0.csv",
+    "Results_qwen2.5:7b-instruct-q4_0.csv",
+    "Results_llama3.1:8b-instruct-q4_0.csv"
+]
 
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
     # Same preprocessing as before
