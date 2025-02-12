@@ -10,6 +10,7 @@ from datetime import datetime
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.callbacks import BaseCallbackHandler
 from ragas import evaluate, EvaluationDataset, RunConfig
+from ragas.llms.langchain import LangchainLLMWrapper
 from ragas.metrics import (
     LLMContextPrecisionWithReference,
     LLMContextRecall,
@@ -25,7 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('evaluation.log'),
+        logging.FileHandler('ragas_evaluation.log'),
         logging.StreamHandler()
     ]
 )
@@ -33,9 +34,7 @@ logging.basicConfig(
 # Apply nest_asyncio for asynchronous support
 nest_asyncio.apply()
 
-class EnhancedJSONCallback(BaseCallbackHandler):
-    """Enhanced callback handler with JSON validation and logging."""
-    
+class EnhancedCallback(BaseCallbackHandler):
     def __init__(self):
         self.responses = []
         self.prompts = []
@@ -51,91 +50,39 @@ class EnhancedJSONCallback(BaseCallbackHandler):
         try:
             if hasattr(response, 'generations') and response.generations:
                 text = response.generations[0][0].text
-                parsed_response = json_fixer(text)
-                logging.debug(f"Successfully parsed response: {json.dumps(parsed_response, indent=2)}")
-            else:
-                logging.warning("Response object has unexpected structure")
+                logging.debug(f"Raw response: {text}")
         except Exception as e:
-            logging.error(f"Failed to parse response: {str(e)}")
-            logging.debug(f"Raw response: {response}")
+            logging.error(f"Failed to log response: {str(e)}")
 
-def json_fixer(llm_output: str) -> Dict[Any, Any]:
-    """
-    Advanced JSON parser with multiple fallback strategies.
-    """
-    if not isinstance(llm_output, str):
-        return {"error": f"Input is not a string: {type(llm_output)}"}
-    
-    # Clean the input
-    cleaned_output = llm_output.strip()
-    cleaned_output = re.sub(r'[\n\r\t]+', ' ', cleaned_output)
-    
-    # Multiple parsing attempts
-    parsing_attempts = [
-        # Attempt 1: Direct parsing
-        lambda x: json.loads(x),
-        
-        # Attempt 2: Fix common JSON formatting issues
-        lambda x: json.loads(re.sub(r'(?<!["{\[,])\b(true|false|null)\b(?!["}\],])', r'"\1"', x)),
-        
-        # Attempt 3: Extract JSON-like structure
-        lambda x: json.loads(re.findall(r'\{(?:[^{}]|(?R))*\}', x, re.DOTALL)[0]),
-        
-        # Attempt 4: Handle single quotes
-        lambda x: json.loads(x.replace("'", '"')),
-        
-        # Attempt 5: Fix unescaped quotes
-        lambda x: json.loads(re.sub(r'(?<=\w)"(?=\w)', r'\"', x))
-    ]
-    
-    for attempt_func in parsing_attempts:
-        try:
-            return attempt_func(cleaned_output)
-        except Exception:
-            continue
-    
-    # If all attempts fail, create a structured error response
-    return {
-        "error": "Failed to parse JSON",
-        "raw_output": cleaned_output[:500],  # Truncate very long outputs
-        "timestamp": datetime.now().isoformat()
-    }
-
-def create_llm(model_name: str) -> ChatOllama:
-    """
-    Create a ChatOllama instance with strict JSON formatting requirements.
-    """
-    return ChatOllama(
+def create_wrapped_llm(model_name: str) -> LangchainLLMWrapper:
+    """Create a LangchainLLMWrapper with ChatOllama."""
+    base_llm = ChatOllama(
         model=model_name,
         temperature=0,
-        format="json",
         system=(
-            "You are a JSON-only response system. Rules:\n"
-            "1. ALWAYS return valid JSON\n"
-            "2. Use this schema: {\"response\": {\"content\": YOUR_CONTENT}}\n"
-            "3. No markdown, no commentary, no extra text\n"
-            "4. Use double quotes for ALL keys and string values\n"
-            "5. If uncertain, return {\"error\": \"explanation\"}\n"
-            "6. Escape special characters properly\n"
-            "7. Arrays must use square brackets []\n"
-            "8. Numbers should not be quoted\n"
+            "You are an evaluation system for question-answering. Follow these rules:\n"
+            "1. For binary decisions, respond with a clear 'yes' or 'no'\n"
+            "2. For scoring, provide a number between 0 and 1\n"
+            "3. Always maintain consistent response formats\n"
+            "4. Focus on accuracy and relevance in evaluations"
         )
     )
+    return LangchainLLMWrapper(llm=base_llm)
 
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
-    """
-    Prepare dataset for RAGAS evaluation.
-    """
-    return EvaluationDataset.from_pandas(
-        df.rename(columns={
-            "Question": "user_input",
-            "Context": "retrieved_contexts",
-            "Answer": "response",
-            "Ground_Truth": "reference"
-        }).assign(
-            retrieved_contexts=lambda x: x.retrieved_contexts.apply(lambda y: [y])
-        )
+    """Prepare dataset for RAGAS evaluation."""
+    processed_df = df.rename(columns={
+        "Question": "user_input",
+        "Context": "retrieved_contexts",
+        "Answer": "response",
+        "Ground_Truth": "reference"
+    })
+    
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
+        lambda x: [x] if isinstance(x, str) else x
     )
+    
+    return EvaluationDataset.from_pandas(processed_df)
 
 def evaluate_model(
     model_name: str,
@@ -144,25 +91,19 @@ def evaluate_model(
     output_dir: Path,
     csv_file: str
 ) -> Optional[pd.DataFrame]:
-    """
-    Evaluate a single model with comprehensive error handling and logging.
-    """
+    """Evaluate a model with comprehensive error handling."""
     logging.info(f"Starting evaluation for model: {model_name}")
     
-    llm = create_llm(model_name)
-    callback = EnhancedJSONCallback()
-    callback.current_model = model_name
-    
     try:
-        # Test JSON capability
-        test_response = llm.invoke("Return a simple JSON response")
-        _ = json_fixer(test_response.content)
+        wrapped_llm = create_wrapped_llm(model_name)
+        callback = EnhancedCallback()
+        callback.current_model = model_name
         
         # Run evaluation
         result = evaluate(
             dataset=dataset,
             metrics=metrics,
-            llm=llm,
+            llm=wrapped_llm,
             embeddings=OllamaEmbeddings(model="nomic-embed-text"),
             raise_exceptions=True,
             callbacks=[callback],
@@ -176,7 +117,7 @@ def evaluate_model(
         
         # Save results
         result_df = result.to_pandas()
-        output_file = output_dir / f"{csv_file.replace('.csv', '')}_{model_name}_quantitative.csv"
+        output_file = output_dir / f"{csv_file.replace('.csv', '')}_{model_name}_evaluation.csv"
         result_df.to_csv(output_file, index=False)
         
         logging.info(f"Successfully saved results to: {output_file}")
@@ -186,16 +127,6 @@ def evaluate_model(
         logging.error(f"Evaluation failed for {model_name}: {str(e)}")
         logging.debug("Last 3 prompts: %s", callback.prompts[-3:] if callback.prompts else "No prompts")
         logging.debug("Last 3 responses: %s", callback.responses[-3:] if callback.responses else "No responses")
-        
-        # Save error information
-        error_df = pd.DataFrame({
-            "model": [model_name],
-            "error": [str(e)],
-            "status": ["failed"],
-            "timestamp": [datetime.now().isoformat()]
-        })
-        error_file = output_dir / f"{csv_file.replace('.csv', '')}_{model_name}_error.csv"
-        error_df.to_csv(error_file, index=False)
         return None
 
 def main():
@@ -207,6 +138,7 @@ def main():
     output_dir = Path("/home/akash/HSv2")
     output_dir.mkdir(exist_ok=True)
     
+    # CSV files to process
     csv_files = [
         "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
         "Results_mistral:7b-instruct-q4_0.csv",
@@ -216,6 +148,7 @@ def main():
         "Results_llama3.1:8b-instruct-q4_0.csv"
     ]
     
+    # Define models
     models = [
         "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
         "llama3.1:8b-instruct-q4_0",
@@ -227,14 +160,18 @@ def main():
         "deepseek-r1:8b-llama-distill-q4_K_M"
     ]
     
+    # Initialize wrapped LLM for metrics
+    wrapped_base_llm = create_wrapped_llm(models[0])
+    
+    # Initialize metrics with wrapped LLM
     metrics = [
-        LLMContextPrecisionWithReference(),
-        LLMContextRecall(),
-        ContextEntityRecall(),
-        ResponseRelevancy(),
-        Faithfulness(),
-        FactualCorrectness(),
-        NoiseSensitivity()
+        LLMContextPrecisionWithReference(llm=wrapped_base_llm),
+        LLMContextRecall(llm=wrapped_base_llm),
+        ContextEntityRecall(llm=wrapped_base_llm),
+        ResponseRelevancy(llm=wrapped_base_llm),
+        Faithfulness(llm=wrapped_base_llm),
+        FactualCorrectness(llm=wrapped_base_llm),
+        NoiseSensitivity(llm=wrapped_base_llm)
     ]
     
     # Validate models
@@ -242,14 +179,13 @@ def main():
     valid_models = []
     for model_name in models:
         try:
-            test_llm = ChatOllama(model=model_name)
-            response = test_llm.invoke("Return JSON with key 'status' and value 'ok'")
-            parsed = json_fixer(response.content)
-            if isinstance(parsed, dict):
+            test_llm = create_wrapped_llm(model_name)
+            test_response = test_llm.invoke("Return JSON with key 'status' and value 'ok'")
+            if test_response:
                 valid_models.append(model_name)
-                logging.info(f"✅ {model_name} passed JSON test")
+                logging.info(f"✅ {model_name} passed test")
             else:
-                logging.warning(f"❌ {model_name} failed: Invalid JSON response")
+                logging.warning(f"❌ {model_name} failed: Invalid response")
         except Exception as e:
             logging.error(f"❌ {model_name} failed: {str(e)}")
     
