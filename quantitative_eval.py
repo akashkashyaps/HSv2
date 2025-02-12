@@ -67,7 +67,7 @@ def create_wrapped_llm(model_name: str) -> LangchainLLMWrapper:
             "4. Focus on accuracy and relevance in evaluations"
         )
     )
-    return LangchainLLMWrapper(llm=base_llm)
+    return LangchainLLMWrapper(base_llm)
 
 def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
     """Prepare dataset for RAGAS evaluation."""
