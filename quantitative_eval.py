@@ -118,13 +118,7 @@ for csv_file in csv_files:
                 metrics=metrics,
                 llm=llm_fn,
                 embeddings=None,  # Provide embeddings if needed
-                raise_exceptions=True,
-                run_config=RunConfig(
-                    timeout=10,
-                    max_retries=1,
-                    max_wait=60,
-                    max_workers=1
-                ),
+                raise_exceptions=True
             )
 
             # Save the evaluation results
