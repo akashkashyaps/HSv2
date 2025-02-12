@@ -1,10 +1,12 @@
+import os
+import re
 import torch
-import pandas as pd
 import nest_asyncio
+import pandas as pd
 
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.callbacks import BaseCallbackHandler
-from ragas import evaluate, EvaluationDataset, RunConfig
+from ragas import evaluate, EvaluationDataset, RunConfig, RagasOutputParserException
 from ragas.metrics import (
     LLMContextPrecisionWithReference,
     LLMContextRecall,
@@ -22,7 +24,9 @@ nest_asyncio.apply()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Define a callback to capture prompts and responses during evaluation.
+###############################################
+# 1) Callback to see prompts/responses (optional)
+###############################################
 class TestCallback(BaseCallbackHandler):
     def on_llm_start(self, serialized, prompts, **kwargs):
         print("********** Prompts **********:")
@@ -35,7 +39,55 @@ class TestCallback(BaseCallbackHandler):
         print(response)
         print("\n")
 
-# List of CSV files to process.
+###############################################
+# 2) Split logic to keep only the first two Document(...) blocks
+###############################################
+def extract_first_two_documents(context_str: str) -> list[str]:
+    """
+    Naive approach: splits on 'Document(' and reconstructs only the first 2 Document(...) blocks.
+    Returns them as separate strings so RAGAS interprets them as separate contexts.
+    """
+    if not context_str:
+        return []
+    # Split by 'Document('
+    parts = context_str.split("Document(")
+    # The first chunk, parts[0], is whatever came before the first Document( (often just '[')
+    # Each subsequent chunk is the text after 'Document('
+    # if we have fewer than 2 documents, just return the entire string as one context
+    if len(parts) < 2:
+        return [context_str]
+
+    # Rebuild the first doc
+    doc1 = "Document(" + parts[1]
+    if len(parts) < 3:
+        return [doc1]
+
+    # Rebuild the second doc
+    doc2 = "Document(" + parts[2]
+    return [doc1, doc2]
+
+###############################################
+# 3) Preprocess function for RAGAS
+###############################################
+def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
+    rows = []
+    for _, row in df.iterrows():
+        # Keep only first 2 documents from the raw "Context" column
+        raw_context = row["Context"] if "Context" in row else ""
+        first_two_docs = extract_first_two_documents(str(raw_context))
+
+        # Build the required RAGAS data structure
+        rows.append({
+            "user_input": row["Question"],              # The user question
+            "retrieved_contexts": first_two_docs,       # At most 2 doc snippets
+            "response": row["Answer"],                  # Model's generated response
+            "reference": row["Ground_Truth"]            # Ground truth reference
+        })
+    return EvaluationDataset.from_list(rows)
+
+###############################################
+# 4) CSV files to process
+###############################################
 csv_files = [
     "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
     "Results_mistral:7b-instruct-q4_0.csv",
@@ -45,19 +97,9 @@ csv_files = [
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
-# Preprocess the dataset to match RAGAS's expected format.
-def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
-    dataset = []
-    for _, row in df.iterrows():
-        dataset.append({
-            "user_input": row["Question"],         # User input/query
-            "retrieved_contexts": [row["Context"]],   # Retrieved contexts as a list
-            "response": row["Answer"],               # Generated response
-            "reference": row["Ground_Truth"]         # Reference/expected response
-        })
-    return EvaluationDataset.from_list(dataset)
-
-# List of models to evaluate.
+###############################################
+# 5) Models to evaluate
+###############################################
 models = [
     "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
     "llama3.1:8b-instruct-q4_0",
@@ -69,63 +111,81 @@ models = [
     "deepseek-r1:8b-llama-distill-q4_K_M"
 ]
 
-# Define the metrics to evaluate.
+###############################################
+# 6) Metrics to evaluate
+###############################################
 metrics = [
-    LLMContextPrecisionWithReference(),  # Context Precision
-    LLMContextRecall(),                  # Context Recall
-    ContextEntityRecall(),               # Context Entities Recall
-    ResponseRelevancy(),                 # Response Relevancy
-    Faithfulness(),                      # Faithfulness
-    FactualCorrectness(),                # Factual Correctness
-    NoiseSensitivity()                   # Noise Sensitivity
+    LLMContextPrecisionWithReference(),
+    LLMContextRecall(),
+    ContextEntityRecall(),
+    ResponseRelevancy(),
+    Faithfulness(),
+    FactualCorrectness(),
+    NoiseSensitivity()
 ]
 
-# Main evaluation loop.
+###############################################
+# 7) Main evaluation loop
+###############################################
 for csv_file in csv_files:
     print(f"\nProcessing dataset: {csv_file}")
+    if not os.path.isfile(csv_file):
+        print(f"File not found: {csv_file}. Skipping.")
+        continue
+
     df = pd.read_csv(csv_file)
     dataset = preprocess_dataset(df)
 
-    # Loop through each model and run the evaluation.
     for model_name in models:
         print(f"\nStarting evaluation for model: {model_name}")
 
-        # Initialise the LLM with a strict system prompt to produce only valid JSON.
+        # Initialize ChatOllama with strict JSON output instructions
         llm = ChatOllama(
             model=model_name,
             temperature=0,
             format="json",
             system=(
-                "You must return a valid JSON object only. Do not include any extra text, commentary, "
-                "or formatting. For example: {\"key\": \"value\"}"
+                "You must return a valid JSON object only. "
+                "Do not include any extra text, commentary, or formatting "
+                "beyond the JSON object itself."
             )
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
-        # Test query to check LLM output format before full evaluation.
-        test_query = "Please return a valid JSON object with a single key 'result' and a simple value."
+        # Quick test query to see if the model adheres to JSON
+        test_query = "Please return {\"check\":\"valid\"}"
         test_response = llm.invoke(test_query)
-        print(f"Test response for model {model_name}: {test_response}")
+        print(f"Test response for model '{model_name}': {test_response}")
 
         try:
-            # Run the evaluation with the callback and a defined run configuration.
+            # Run the evaluation with a callback for debug
             result = evaluate(
                 dataset=dataset,
                 metrics=metrics,
                 llm=llm,
                 embeddings=ollama_emb,
-                raise_exceptions=True,
                 callbacks=[TestCallback()],
-                run_config=RunConfig(timeout=10, max_retries=1, max_wait=60, max_workers=1)
+                # run_config with fewer retries/timeouts for demonstration
+                run_config=RunConfig(
+                    timeout=15,
+                    max_retries=1,
+                    max_wait=60,
+                    max_workers=1
+                ),
+                raise_exceptions=True
             )
-        except Exception as e:
-            print(f"Evaluation failed for model {model_name}: {e}")
-            # Print a few dataset entries for context.
-            for entry in dataset.to_pandas().to_dict(orient="records")[:5]:
+        except RagasOutputParserException as e:
+            print(f"** JSON Parsing / RAGAS Output Error for model {model_name}:")
+            print(e)
+            # Print a snippet of the dataset for context
+            for entry in dataset.to_pandas().head(2).to_dict(orient="records"):
                 print("Debug entry:", entry)
             continue
+        except Exception as e:
+            print(f"** General Error for model {model_name}: {e}")
+            continue
 
-        # Save the result if evaluation succeeds.
+        # If evaluation succeeds, save to CSV
         output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
         result.to_pandas().to_csv(output_file, index=False)
         print(f"Completed evaluation for model: {model_name}")
