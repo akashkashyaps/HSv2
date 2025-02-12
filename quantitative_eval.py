@@ -1,7 +1,9 @@
 import torch
 import pandas as pd
 import nest_asyncio
-
+import json
+import re
+from typing import Dict, Any
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.callbacks import BaseCallbackHandler
 from ragas import evaluate, EvaluationDataset, RunConfig
@@ -15,153 +17,103 @@ from ragas.metrics import (
     NoiseSensitivity
 )
 
-# Apply nest_asyncio for asynchronous support
-nest_asyncio.apply()
-
-# Check if CUDA is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-
-# Define a callback to capture prompts and responses during evaluation.
-class TestCallback(BaseCallbackHandler):
+class EnhancedJSONCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.responses = []
+        self.prompts = []
+        
     def on_llm_start(self, serialized, prompts, **kwargs):
-        print("********** Prompts **********:")
         if prompts:
-            print(prompts[0])
-        print("\n")
+            self.prompts.append(prompts[0])
+            print(f"Prompt: {prompts[0][:200]}...")  # Truncated for readability
     
     def on_llm_end(self, response, **kwargs):
-        print("********** Response **********:")
-        print(response)
-        print("\n")
+        self.responses.append(response)
+        try:
+            parsed_response = json_fixer(response.generations[0][0].text)
+            print(f"Parsed Response: {json.dumps(parsed_response, indent=2)}")
+        except Exception as e:
+            print(f"Failed to parse response: {str(e)}\nRaw response: {response}")
 
-# List of CSV files to process.
-csv_files = [
-    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
-    "Results_mistral:7b-instruct-q4_0.csv",
-    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
-    "Results_gemma2:9b-instruct-q4_0.csv",
-    "Results_qwen2.5:7b-instruct-q4_0.csv", 
-    "Results_llama3.1:8b-instruct-q4_0.csv"
-]
-import json
-import re
-# Preprocess the dataset to match RAGAS's expected format.
-def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
-    return EvaluationDataset.from_pandas(df.rename(columns={
-        "Question": "user_input",
-        "Context": "retrieved_contexts",
-        "Answer": "response",
-        "Ground_Truth": "reference"
-    }).assign(retrieved_contexts=lambda x: x.retrieved_contexts.apply(lambda y: [y])))
-
-# List of models to evaluate.
-models = [
-    "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
-    "llama3.1:8b-instruct-q4_0",
-    "qwen2.5:7b-instruct-q4_0",
-    "gemma2:9b-instruct-q4_0",
-    "phi3.5:3.8b-mini-instruct-q4_0",
-    "mistral:7b-instruct-q4_0",
-    "deepseek-r1:7b-qwen-distill-q4_K_M",
-    "deepseek-r1:8b-llama-distill-q4_K_M"
-]
-import traceback
-# Define the metrics to evaluate.
-metrics = [
-    LLMContextPrecisionWithReference(),  # Context Precision
-    LLMContextRecall(),                  # Context Recall
-    ContextEntityRecall(),               # Context Entities Recall
-    ResponseRelevancy(),                 # Response Relevancy
-    Faithfulness(),                      # Faithfulness
-    FactualCorrectness(),                # Factual Correctness
-    NoiseSensitivity()                   # Noise Sensitivity
-]
-def json_fixer(llm_output: str) -> dict:
-    try:
-        return json.loads(llm_output)
-    except json.JSONDecodeError:
-        # Attempt to extract JSON from malformed response
-        matches = re.findall(r'\{.*?\}', llm_output, re.DOTALL)
-        if matches:
-            try:
-                return json.loads(matches[0])
-            except:
-                pass
-        return {"error": "Failed to parse JSON"}
+def json_fixer(llm_output: str) -> Dict[Any, Any]:
+    """
+    Enhanced JSON parser that handles malformed JSON responses.
+    """
+    # Remove any leading/trailing whitespace and common formatting issues
+    cleaned_output = llm_output.strip()
+    cleaned_output = re.sub(r'[\n\r\t]+', ' ', cleaned_output)
     
-print("\nRunning pre-flight model checks...")
-for model_name in models:
     try:
-        test_llm = ChatOllama(model=model_name)
-        response = test_llm.invoke("Return JSON with key 'status' and value 'ok'")
-        parsed = json_fixer(response.content)
-        assert 'status' in parsed
-        print(f"✅ {model_name} passed JSON test")
-    except Exception as e:
-        print(f"❌ {model_name} failed: {str(e)}")
-        models.remove(model_name)
+        # First attempt: direct JSON parsing
+        return json.loads(cleaned_output)
+    except json.JSONDecodeError:
+        try:
+            # Second attempt: find and parse the first JSON-like structure
+            json_pattern = r'\{(?:[^{}]|(?R))*\}'
+            matches = re.findall(json_pattern, cleaned_output, re.DOTALL)
+            if matches:
+                return json.loads(matches[0])
+            
+            # Third attempt: try to fix common JSON formatting issues
+            fixed_output = cleaned_output
+            fixed_output = re.sub(r'(?<!["{\[,])\b(true|false|null)\b(?!["}\],])', r'"\1"', fixed_output)
+            fixed_output = re.sub(r'(?<=\w)"(?=\w)', '\\"', fixed_output)
+            return json.loads(fixed_output)
+        except Exception as e:
+            # If all parsing attempts fail, return a structured error response
+            return {
+                "error": "Failed to parse JSON",
+                "raw_output": cleaned_output,
+                "error_details": str(e)
+            }
 
-# Main evaluation loop.
-for csv_file in csv_files:
-    print(f"\nProcessing dataset: {csv_file}")
-    df = pd.read_csv(csv_file)
-    dataset = preprocess_dataset(df)
+def create_llm(model_name: str) -> ChatOllama:
+    """
+    Create a ChatOllama instance with improved JSON handling capabilities.
+    """
+    return ChatOllama(
+        model=model_name,
+        temperature=0,
+        format="json",
+        system=(
+            "You are a JSON-only response system. Follow these rules:\n"
+            "1. ALWAYS return valid JSON\n"
+            "2. Use this exact schema: {\"response\": {\"content\": YOUR_CONTENT}}\n"
+            "3. No markdown, no commentary, no extra text\n"
+            "4. If you're unsure, return {\"error\": \"explanation\"}\n"
+            "5. Always use double quotes for keys and string values"
+        )
+    )
 
-    # Loop through each model and run the evaluation.
-    for model_name in models:
-        print(f"\nStarting evaluation for model: {model_name}")
-
-        # Initialise the LLM with a strict system prompt to produce only valid JSON.
-        # Update your ChatOllama initialization with better JSON prompting
-        llm = ChatOllama(
-            model=model_name,
-            temperature=0,
-            format="json",
-            system=(
-                "You MUST return VALID JSON ONLY. Follow this exact schema:\n\n"
-                "{\n  \"key1\": \"value\",\n  \"key2\": [\"list\", \"values\"]\n}\n\n"
-                "No commentary. No markdown. No extra text. "
-                "If you fail to return valid JSON, people will die!"
+def evaluate_model(model_name: str, dataset: EvaluationDataset, metrics: list) -> pd.DataFrame:
+    """
+    Evaluate a single model with enhanced error handling and logging.
+    """
+    llm = create_llm(model_name)
+    callback = EnhancedJSONCallback()
+    
+    try:
+        result = evaluate(
+            dataset=dataset,
+            metrics=metrics,
+            llm=llm,
+            embeddings=OllamaEmbeddings(model="nomic-embed-text"),
+            raise_exceptions=True,
+            callbacks=[callback],
+            run_config=RunConfig(
+                timeout=60,
+                max_retries=3,
+                max_wait=60,
+                max_workers=2
             )
         )
-        ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
-
-        def json_fixer(llm_output: str) -> dict:
-            try:
-                return json.loads(llm_output)
-            except json.JSONDecodeError:
-                # Attempt to extract JSON from malformed response
-                matches = re.findall(r'\{.*?\}', llm_output, re.DOTALL)
-                if matches:
-                    try:
-                        return json.loads(matches[0])
-                    except:
-                        pass
-                return {"error": "Failed to parse JSON"}
-
-        try:
-            # Run the evaluation with the callback and a defined run configuration.
-            result = evaluate(
-                dataset=dataset,
-                metrics=metrics,
-                llm=llm,
-                embeddings=ollama_emb,
-                raise_exceptions=True,
-                callbacks=[TestCallback()],
-                run_config=RunConfig(timeout=60, max_retries=3, max_wait=60, max_workers=2)
-            )
-        except Exception as e:
-            print(f"Evaluation failed for model {model_name}: {e}")
-            # Print a few dataset entries for context.
-            for entry in dataset.to_pandas().to_dict(orient="records")[:5]:
-                print("Debug entry:", entry)
-            continue
-
-        # Save the result if evaluation succeeds.
-        output_file = f"/home/akash/HSv2/{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
-        result.to_pandas().to_csv(output_file, index=False)
-        print(f"Completed evaluation for model: {model_name}")
-        print(f"Results saved to: {output_file}")
-
-    print(f"Finished processing dataset: {csv_file}")
+        return result.to_pandas()
+    except Exception as e:
+        print(f"Evaluation failed for {model_name}: {str(e)}")
+        print("Last 3 prompts:", callback.prompts[-3:])
+        print("Last 3 responses:", callback.responses[-3:])
+        return pd.DataFrame({
+            "model": [model_name],
+            "error": [str(e)],
+            "status": ["failed"]
+        })
