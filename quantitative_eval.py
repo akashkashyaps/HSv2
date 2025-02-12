@@ -75,7 +75,6 @@ def create_pipeline(model_name):
         "text-generation",
         model=model,
         tokenizer=tokenizer,
-        device=device,
         max_new_tokens=512,
         do_sample=False,
         return_full_text=False
