@@ -95,7 +95,7 @@ def load_and_build_llm(model_name: str):
             )
         return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
-    return LangchainLLMWrapper(llm=llm_fn)
+    return LangchainLLMWrapper(llm_fn)
 
 #################################################################
 # 6) Main evaluation loop (no callbacks used)
