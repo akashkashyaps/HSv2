@@ -416,8 +416,12 @@ class MetricEvaluator:
         """Create evaluation chains for all metrics using specified model"""
         llm = ChatOllama(model=model_name, temperature=0)
         return {
-            metric_name: prompt | llm | self.output_parser
-            for metric_name, prompt in self.metrics.items()
+            "context_precision_chain" : self.metrics['context_precision'] | llm | self.output_parser,
+            "context_recall_chain" : self.metrics['context_recall'] | llm | self.output_parser,
+            "context_entities_recall_chain" : self.metrics['context_entities_recall'] | llm | self.output_parser,
+            "noise_sensitivity_chain" : self.metrics['noise_sensitivity'] | llm | self.output_parser,
+            "response_relevancy_chain" : self.metrics['response_relevancy'] | llm | self.output_parser,
+            "faithfulness_chain" : self.metrics['faithfulness'] | llm | self.output_parser
         }
     
     def preprocess_data(self, df):
