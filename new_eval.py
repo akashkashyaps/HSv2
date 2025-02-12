@@ -237,7 +237,7 @@ Please compute and provide the **Noise Sensitivity** metric. STRICTLY output onl
 """
 )
 
-response_relevancy_template=(r"""
+response_relevancy_template=("""
 You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the **Response Relevancy** metric based on the inputs provided below.
 
 **Inputs:**
@@ -299,7 +299,7 @@ Please compute and provide the **Response Relevancy** metric. STRICTLY output on
 """
 )
 
-faithfulness_template=(r"""
+faithfulness_template=("""
 You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the **Faithfulness** metric based on the inputs provided below.
 
 **Inputs:**
@@ -365,7 +365,19 @@ Using the provided inputs:
 - STRICTLY output only the value. NO additional information or formatting is required. You are FORBIDDEN from explaining your value.
 """
 )
+import re
 
+def replace_double_braces(text):
+    text = re.sub(r'\{\{', '(', text)  # Replace '{{' with '('
+    text = re.sub(r'\}\}', ')', text)  # Replace '}}' with ')'
+    return text
+
+response_relevancy_template = replace_double_braces(response_relevancy_template)
+faithfulness_template = replace_double_braces(faithfulness_template)
+noise_sensitivity_template = replace_double_braces(noise_sensitivity_template)
+context_entities_recall_template = replace_double_braces(context_entities_recall_template)
+context_recall_template = replace_double_braces(context_recall_template)
+context_precision_template = replace_double_braces(context_precision_template)
 class MetricEvaluator:
     def __init__(self):
         self.metrics = self.initialize_metrics()
