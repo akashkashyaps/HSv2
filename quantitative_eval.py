@@ -76,7 +76,7 @@ def create_pipeline(model_name):
         model=model,
         tokenizer=tokenizer,
         max_new_tokens=512,
-        do_sample=False,
+        do_sample=True,
         return_full_text=False
     )
 
