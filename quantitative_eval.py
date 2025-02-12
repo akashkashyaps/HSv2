@@ -74,6 +74,8 @@ unsloth_models = [
 #################################################################
 # 5) Define a helper function for text generation
 #################################################################
+from ragas.llms import LangchainLLMWrapper
+
 def load_and_build_llm(model_name: str):
     """
     Loads a Hugging Face model and tokenizer, returns a function
@@ -93,7 +95,7 @@ def load_and_build_llm(model_name: str):
             )
         return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
-    return llm_fn
+    return LangchainLLMWrapper(llm=llm_fn)
 
 #################################################################
 # 6) Main evaluation loop (no callbacks used)
