@@ -48,7 +48,7 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-context_precision_template=(r""" You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the Context Precision metric based on the inputs provided below. Inputs:
+context_precision_template=(""" You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the Context Precision metric based on the inputs provided below. Inputs:
 
 User Input: {user_input}
 Reference: {reference}
@@ -78,7 +78,7 @@ Return the computed Context Precision as a single number between 0 and 1.
 Please perform these calculations and provide the final Context Precision value. STRICTLY output only the value. NO additional information or formatting is required. You are FORBIDDEN from explaining your value. Stick to the precision calculation only. """ 
 )
 
-context_recall_template=(r""" You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the Context Recall metric based on the inputs provided below. Inputs:
+context_recall_template=(""" You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the Context Recall metric based on the inputs provided below. Inputs:
 
 User Input: {user_input}
 Reference: {reference}
@@ -105,7 +105,7 @@ Return the final Context Recall value as a single number between 0 and 1. STRICT
 )
 
 
-context_entities_recall_template=(r"""
+context_entities_recall_template=("""
 You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the **Context Entities Recall** metric based on the inputs provided below.
 
 **Inputs:**
@@ -166,7 +166,7 @@ Please compute the **Context Entities Recall** metric. STRICTLY output only the 
 """
 )
 
-noise_sensitivity_template=(r"""
+noise_sensitivity_template=("""
 You are a helpful assistant tasked with evaluating the performance of a Retrieval-Augmented Generation (RAG) system. Your job is to compute the **Noise Sensitivity** metric based on the inputs provided below.
 
 **Inputs:**
