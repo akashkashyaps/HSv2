@@ -166,15 +166,15 @@ def main():
     ]
     
     # Initialize metrics with wrapped LLM
-    base_llm = create_wrapped_llm(models[0])
+    
     metrics = [
-        LLMContextPrecisionWithReference(llm=base_llm),
-        LLMContextRecall(llm=base_llm),
-        ContextEntityRecall(llm=base_llm),
-        ResponseRelevancy(llm=base_llm),
-        Faithfulness(llm=base_llm),
-        FactualCorrectness(llm=base_llm),
-        NoiseSensitivity(llm=base_llm)
+        LLMContextPrecisionWithReference(),
+        LLMContextRecall(),
+        ContextEntityRecall(),
+        ResponseRelevancy(),
+        Faithfulness(),
+        FactualCorrectness(),
+        NoiseSensitivity()
     ]
     
     # Validate models
