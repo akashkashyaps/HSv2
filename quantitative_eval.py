@@ -45,7 +45,22 @@ def clean_context_text(text: str) -> list:
     lines = [line.strip() for line in lines if line.strip()]
     return lines
 
-def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
+def safe_literal_eval(x):
+    """Try to safely evaluate x as a Python literal, and if it fails, return x."""
+    if isinstance(x, str):
+        # Optionally check that the string looks like a list
+        if x.startswith('[') and x.endswith(']'):
+            try:
+                return ast.literal_eval(x)
+            except Exception as e:
+                print(f"Warning: failed to literal_eval {x}: {e}")
+                return x
+        else:
+            # If the string doesn't look like a list, return it as is.
+            return x
+    return x
+
+def preprocess_dataset(df: pd.DataFrame):
     """
     Prepares dataset for evaluation by renaming columns and
     simplifying 'retrieved_contexts' into lists of strings.
@@ -57,20 +72,19 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "Ground_Truth": "reference"
     })
     
-    # Convert string representation of list ("[Doc1, Doc2]") to an actual Python list
-    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda x: ast.literal_eval(x) if isinstance(x, str) else x
-    )
+    # Safely convert string representations of lists to actual lists.
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(safe_literal_eval)
     
-    # Optionally split each doc in the retrieved_contexts
-    # so we have smaller pieces of text (list of lines).
+    # Optionally split each doc in the retrieved_contexts into smaller pieces (list of lines)
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
         lambda doc_list: [clean_context_text(doc) for doc in doc_list]
+        if isinstance(doc_list, list) else doc_list
     )
     
-    # Flatten each row so we end up with a single list of lines
+    # Flatten each row so we end up with a single list of lines.
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
         lambda doc_list: [line for sublist in doc_list for line in sublist]
+        if isinstance(doc_list, list) else doc_list
     )
     
     evaluation_dataset = EvaluationDataset.from_pandas(processed_df)
