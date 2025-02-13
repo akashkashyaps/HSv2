@@ -387,7 +387,7 @@ class MetricEvaluator:
         """Define all evaluation metrics as separate chains"""
         return {
             'noise_sensitivity': PromptTemplate(
-                input_variables=["user_input", "reference", "response", "retrieved_contexts"],
+                input_variables=[{"user_input"}, {"reference"}, {"response"}, {"retrieved_contexts"}],
                 template=replace_double_braces(noise_sensitivity_template)
             ),
             'faithfulness': PromptTemplate(
