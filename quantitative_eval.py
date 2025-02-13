@@ -98,7 +98,7 @@ metrics = [
     FactualCorrectness(),                # Factual Correctness
     NoiseSensitivity()                   # Noise Sensitivity
 ]
-
+from ragas.run_config import RunConfig
 # Loop through each CSV file
 for csv_file in csv_files:
     print(f"\nProcessing dataset: {csv_file}")
@@ -121,7 +121,8 @@ for csv_file in csv_files:
             dataset=dataset,
             llm=llm,
             embeddings=ollama_emb,
-            metrics=metrics
+            metrics=metrics,
+            run_config=RunConfig(max_retries=5,timeout=360)
             )
 
         # Save the result if everything parsed correctly
