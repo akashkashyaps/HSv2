@@ -36,22 +36,20 @@ csv_files = [
 ]
 
 # Preprocess the dataset to match RAGAS expected format
-def split_into_sentences(text: str) -> list[str]:
-    """Split text into sentences using simple rules."""
-    sentences = []
-    # Split by paragraphs first (newlines)
-    paragraphs = text.split('\n')
-    for para in paragraphs:
-        # Split by sentences (period followed by space)
-        if para.strip():
-            for sent in para.split('. '):
-                cleaned = sent.strip()
-                if cleaned:
-                    sentences.append(cleaned)
-    return sentences
+def clean_context_text(text: str) -> list:
+    """
+    Splits 'text' by newlines, strips whitespace,
+    and filters out empty lines — one simple approach to chunking.
+    """
+    lines = text.split('\n')
+    lines = [line.strip() for line in lines if line.strip()]
+    return lines
 
 def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert retrieved_contexts into clean sentences."""
+    """
+    Prepares dataset for evaluation by renaming columns and
+    simplifying 'retrieved_contexts' into lists of strings.
+    """
     processed_df = df.rename(columns={
         "Question": "user_input",
         "Context": "retrieved_contexts",
@@ -59,18 +57,20 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "Ground_Truth": "reference"
     })
     
-    # Convert string to list of Documents
+    # Convert string representation of list ("[Doc1, Doc2]") to an actual Python list
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
         lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
     
-    # Extract sentences from each Document's page_content
+    # Optionally split each doc in the retrieved_contexts
+    # so we have smaller pieces of text (list of lines).
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda docs: [
-            sentence
-            for doc in docs  # Iterate over each Document
-            for sentence in split_into_sentences(doc['page_content'])
-        ]
+        lambda doc_list: [clean_context_text(doc) for doc in doc_list]
+    )
+    
+    # Flatten each row so we end up with a single list of lines
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
+        lambda doc_list: [line for sublist in doc_list for line in sublist]
     )
     
     evaluation_dataset = EvaluationDataset.from_pandas(processed_df)
