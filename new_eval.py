@@ -399,7 +399,7 @@ noise_sensitivity_prompt = PromptTemplate(
 )
 
 faithfulness_prompt = PromptTemplate(
-    input_variables=["user_input", "response", "retrieved_contexts"],
+    input_variables=["user_input","retrieved_contexts", "response"],
     template=replace_double_braces(faithfulness_template)
 )
 
@@ -452,8 +452,8 @@ def get_faithfulness(llm, user_input: str, response: str, retrieved_contexts: li
     chain = (faithfulness_prompt | llm | StrOutputParser())
     faith_result = chain.invoke({
         "user_input": user_input,
-        "response": response,
-        "retrieved_contexts": retrieved_contexts
+        "retrieved_contexts": retrieved_contexts,
+        "response": response
     })
     return {
         "Faithfulness": faith_result
