@@ -1,16 +1,8 @@
+from langchain_ollama import ChatOllama
+from langchain_ollama import OllamaEmbeddings
 import torch
-import pandas as pd
-import nest_asyncio
-import json
-import re
-import logging
-from typing import Dict, Any, List, Optional
-from pathlib import Path
-from datetime import datetime
-from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_core.callbacks import BaseCallbackHandler
-from ragas import evaluate, EvaluationDataset, RunConfig
-from ragas.llms import LangchainLLMWrapper
+import pandas as pd 
+from ragas import evaluate
 from ragas.metrics import (
     LLMContextPrecisionWithReference,
     LLMContextRecall,
@@ -20,62 +12,46 @@ from ragas.metrics import (
     FactualCorrectness,
     NoiseSensitivity
 )
+from datasets import Dataset
+from ragas import EvaluationDataset
+import nest_asyncio
+import pandas as pd
+import ast
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('ragas_evaluation.log'),
-        logging.StreamHandler()
-    ]
-)
-
-# Apply nest_asyncio for asynchronous support
+# Apply nest_asyncio for async support
 nest_asyncio.apply()
 
-class EnhancedCallback(BaseCallbackHandler):
-    def __init__(self):
-        self.responses = []
-        self.prompts = []
-        self.current_model = None
-        
-    def on_llm_start(self, serialized, prompts, **kwargs):
-        if prompts:
-            self.prompts.append(prompts[0])
-            logging.debug(f"Processing prompt: {prompts[0][:200]}...")
-    
-    def on_llm_end(self, response, **kwargs):
-        self.responses.append(response)
-        try:
-            if hasattr(response, 'generations') and response.generations:
-                text = response.generations[0][0].text
-                logging.debug(f"Raw response: {text}")
-        except Exception as e:
-            logging.error(f"Failed to log response: {str(e)}")
+# Check if CUDA is available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
 
-class CustomLangchainWrapper(LangchainLLMWrapper):
-    def invoke(self, prompt: str) -> str:
-        """Override invoke method to use predict instead."""
-        return self.llm.predict(prompt)
+# List of CSV files to process
+csv_files = [
+    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
+    "Results_mistral:7b-instruct-q4_0.csv",
+    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
+    "Results_gemma2:9b-instruct-q4_0.csv",
+    "Results_qwen2.5:7b-instruct-q4_0.csv", 
+    "Results_llama3.1:8b-instruct-q4_0.csv"
+]
 
-def create_wrapped_llm(model_name: str) -> CustomLangchainWrapper:
-    """Create a CustomLangchainWrapper with ChatOllama."""
-    base_llm = ChatOllama(
-        model=model_name,
-        temperature=0,
-        system=(
-            "You are an evaluation system for question-answering. Follow these rules:\n"
-            "1. For binary decisions, respond with a clear 'yes' or 'no'\n"
-            "2. For scoring, provide a number between 0 and 1\n"
-            "3. Always maintain consistent response formats\n"
-            "4. Focus on accuracy and relevance in evaluations"
-        )
-    )
-    return CustomLangchainWrapper(base_llm)
+# Preprocess the dataset to match RAGAS expected format
+def split_into_sentences(text: str) -> list[str]:
+    """Split text into sentences using simple rules."""
+    sentences = []
+    # Split by paragraphs first (newlines)
+    paragraphs = text.split('\n')
+    for para in paragraphs:
+        # Split by sentences (period followed by space)
+        if para.strip():
+            for sent in para.split('. '):
+                cleaned = sent.strip()
+                if cleaned:
+                    sentences.append(cleaned)
+    return sentences
 
-def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
-    """Prepare dataset for RAGAS evaluation."""
+def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert retrieved_contexts into clean sentences."""
     processed_df = df.rename(columns={
         "Question": "user_input",
         "Context": "retrieved_contexts",
@@ -83,139 +59,78 @@ def preprocess_dataset(df: pd.DataFrame) -> EvaluationDataset:
         "Ground_Truth": "reference"
     })
     
+    # Convert string to list of Documents
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda x: [x] if isinstance(x, str) else x
+        lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
     
-    return EvaluationDataset.from_pandas(processed_df)
-
-def evaluate_model(
-    model_name: str,
-    dataset: EvaluationDataset,
-    metrics: List,
-    output_dir: Path,
-    csv_file: str
-) -> Optional[pd.DataFrame]:
-    """Evaluate a model with comprehensive error handling."""
-    logging.info(f"Starting evaluation for model: {model_name}")
+    # Extract sentences from each Document's page_content
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
+        lambda docs: [
+            sentence
+            for doc in docs  # Iterate over each Document
+            for sentence in split_into_sentences(doc['page_content'])
+        ]
+    )
     
-    try:
-        wrapped_llm = create_wrapped_llm(model_name)
-        callback = EnhancedCallback()
-        callback.current_model = model_name
-        
-        # Run evaluation
+    evaluation_dataset = EvaluationDataset.from_list(processed_df.to_dict(orient='records'))
+    return evaluation_dataset
+
+from ragas import EvaluationDataset
+
+# List of models to evaluate
+models = [
+    "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
+    "llama3.1:8b-instruct-q4_0",
+    "qwen2.5:7b-instruct-q4_0",
+    "gemma2:9b-instruct-q4_0",
+    "phi3.5:3.8b-mini-instruct-q4_0",
+    "mistral:7b-instruct-q4_0",
+    "deepseek-r1:7b-qwen-distill-q4_K_M",
+    "deepseek-r1:8b-llama-distill-q4_K_M"
+]
+
+# Define the metrics to evaluate
+metrics = [
+    LLMContextPrecisionWithReference(),  # Context Precision
+    LLMContextRecall(),                  # Context Recall
+    ContextEntityRecall(),               # Context Entities Recall
+    ResponseRelevancy(),                 # Response Relevancy
+    Faithfulness(),                      # Faithfulness
+    FactualCorrectness(),                # Factual Correctness
+    NoiseSensitivity()                   # Noise Sensitivity
+]
+
+# Loop through each CSV file
+for csv_file in csv_files:
+    print(f"\nProcessing dataset: {csv_file}")
+    evaluation_set = pd.read_csv(csv_file)
+    dataset = preprocess_dataset(evaluation_set)
+
+    # Loop through each model and run the evaluation
+    for model_name in models:
+        print(f"Starting evaluation for model: {model_name}")
+
+        # Strong system prompt to produce *only* valid JSON
+        llm = ChatOllama(
+            model=model_name,
+            temperature=0,
+            format="json"
+        )
+        ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
+
         result = evaluate(
             dataset=dataset,
-            metrics=metrics,
-            llm=wrapped_llm,
-            embeddings=OllamaEmbeddings(model="nomic-embed-text"),
-            raise_exceptions=True,
-            callbacks=[callback],
-            run_config=RunConfig(
-                timeout=60,
-                max_retries=3,
-                max_wait=60,
-                max_workers=2
+            llm=llm,
+            embeddings=ollama_emb,
+            metrics=metrics
             )
-        )
-        
-        # Save results
-        result_df = result.to_pandas()
-        output_file = output_dir / f"{csv_file.replace('.csv', '')}_{model_name}_evaluation.csv"
-        result_df.to_csv(output_file, index=False)
-        
-        logging.info(f"Successfully saved results to: {output_file}")
-        return result_df
-        
-    except Exception as e:
-        logging.error(f"Evaluation failed for {model_name}: {str(e)}")
-        logging.debug("Last 3 prompts: %s", callback.prompts[-3:] if callback.prompts else "No prompts")
-        logging.debug("Last 3 responses: %s", callback.responses[-3:] if callback.responses else "No responses")
-        return None
 
-def main():
-    # Setup
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f"Using device: {device}")
-    
-    # Configuration
-    output_dir = Path("/home/akash/HSv2")
-    output_dir.mkdir(exist_ok=True)
-    
-    # CSV files to process
-    csv_files = [
-        "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
-        "Results_mistral:7b-instruct-q4_0.csv",
-        "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
-        "Results_gemma2:9b-instruct-q4_0.csv",
-        "Results_qwen2.5:7b-instruct-q4_0.csv",
-        "Results_llama3.1:8b-instruct-q4_0.csv"
-    ]
-    
-    # Define models
-    models = [
-        "lly/InternLM3-8B-Instruct:8b-instruct-q4_0",
-        "llama3.1:8b-instruct-q4_0",
-        "qwen2.5:7b-instruct-q4_0",
-        "gemma2:9b-instruct-q4_0",
-        "phi3.5:3.8b-mini-instruct-q4_0",
-        "mistral:7b-instruct-q4_0",
-        "deepseek-r1:7b-qwen-distill-q4_K_M",
-        "deepseek-r1:8b-llama-distill-q4_K_M"
-    ]
-    
-    # Initialize metrics with wrapped LLM
-    
-    metrics = [
-        LLMContextPrecisionWithReference(),
-        LLMContextRecall(),
-        ContextEntityRecall(),
-        ResponseRelevancy(),
-        Faithfulness(),
-        FactualCorrectness(),
-        NoiseSensitivity()
-    ]
-    
-    # Validate models
-    logging.info("Running pre-flight model checks...")
-    valid_models = []
-    for model_name in models:
-        try:
-            test_llm = create_wrapped_llm(model_name)
-            test_response = test_llm.invoke("Return JSON with key 'status' and value 'ok'")
-            if test_response:
-                valid_models.append(model_name)
-                logging.info(f"✅ {model_name} passed test")
-            else:
-                logging.warning(f"❌ {model_name} failed: Invalid response")
-        except Exception as e:
-            logging.error(f"❌ {model_name} failed: {str(e)}")
-    
-    # Main evaluation loop
-    for csv_file in csv_files:
-        logging.info(f"\nProcessing dataset: {csv_file}")
-        try:
-            df = pd.read_csv(csv_file)
-            dataset = preprocess_dataset(df)
-            
-            for model_name in valid_models:
-                result_df = evaluate_model(
-                    model_name=model_name,
-                    dataset=dataset,
-                    metrics=metrics,
-                    output_dir=output_dir,
-                    csv_file=csv_file
-                )
-                
-                if result_df is not None:
-                    logging.info(f"Successfully evaluated {model_name} on {csv_file}")
-                else:
-                    logging.warning(f"Evaluation failed for {model_name} on {csv_file}")
-                    
-        except Exception as e:
-            logging.error(f"Failed to process {csv_file}: {str(e)}")
-            continue
+        # Save the result if everything parsed correctly
+        output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
+        result.to_pandas().to_csv(output_file, index=False)
 
-if __name__ == "__main__":
-    main()
+        print(f"Completed evaluation for model: {model_name}")
+        print(f"Results saved to: {output_file}")
+
+    print(f"Finished processing dataset: {csv_file}")
