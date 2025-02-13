@@ -352,7 +352,7 @@ Faithfulness measures how factually consistent the generated response is with th
 - Let \( S \) be the number of claims that are supported by the retrieved contexts.
 - Compute the **Faithfulness** score using the formula:
 \[
-\text{{Faithfulness}} = \frac{{S}}{{T}}
+\text(Faithfulness) = \frac(S)(T)
 \]
 - The final score will be a value between 0 and 1.
 
@@ -377,7 +377,7 @@ Faithfulness measures how factually consistent the generated response is with th
 3. **Calculate Faithfulness:**  
 - Total claims, \( T = 2 \)  
 - Supported claims, \( S = 1 \)  
-- **Faithfulness Score:** \( \frac{{1}}{{2}} = 0.5 \)
+- **Faithfulness Score:** \( \frac(1)(2) = 0.5 \)
 
 **Your Task:**
 
