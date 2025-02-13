@@ -73,9 +73,8 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         lambda doc_list: [line for sublist in doc_list for line in sublist]
     )
     
-    return processed_df
-    
-evaluation_dataset = EvaluationDataset.from_pandas(preprocess_dataset)
+    evaluation_dataset = EvaluationDataset.from_pandas(processed_df)
+    return evaluation_dataset
 
 
 from ragas import EvaluationDataset
