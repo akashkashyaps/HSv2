@@ -352,7 +352,7 @@ Faithfulness measures how factually consistent the generated response is with th
 - Let \( S \) be the number of claims that are supported by the retrieved contexts.
 - Compute the **Faithfulness** score using the formula:
 \[
-\text(Faithfulness) = \frac(S)(T)
+\text{{Faithfulness}} = \frac{{S}}{{T}}
 \]
 - The final score will be a value between 0 and 1.
 
@@ -377,7 +377,7 @@ Faithfulness measures how factually consistent the generated response is with th
 3. **Calculate Faithfulness:**  
 - Total claims, \( T = 2 \)  
 - Supported claims, \( S = 1 \)  
-- **Faithfulness Score:** \( \frac(1)(2) = 0.5 \)
+- **Faithfulness Score:** \( \frac{{1}}{{2}} = 0.5 \)
 
 **Your Task:**
 
@@ -390,8 +390,16 @@ Using the provided inputs:
 """
 )
 def replace_double_braces(template_str: str) -> str:
-    """(Optional) Replace double braces to avoid format-string issues."""
-    return template_str.replace('{{', '{').replace('}}', '}')
+    """Escapes template variables while preserving LaTeX formatting"""
+    return (
+        template_str
+        .replace('{{', '_DBL_LBRACE_')  # Preserve existing double braces
+        .replace('}}', '_DBL_RBRACE_')  # (for LaTeX equations)
+        .replace('{', '{{')
+        .replace('}', '}}')
+        .replace('_DBL_LBRACE_', '{')  # Restore actual double braces
+        .replace('_DBL_RBRACE_', '}')
+    )
 
 noise_sensitivity_prompt = PromptTemplate(
     input_variables=["user_input", "reference", "response", "retrieved_contexts"],
@@ -399,7 +407,7 @@ noise_sensitivity_prompt = PromptTemplate(
 )
 
 faithfulness_prompt = PromptTemplate(
-    input_variables=["user_input","retrieved_contexts", "response"],
+    input_variables=["user_input", "response", "retrieved_contexts"],
     template=replace_double_braces(faithfulness_template)
 )
 
@@ -452,8 +460,8 @@ def get_faithfulness(llm, user_input: str, response: str, retrieved_contexts: li
     chain = (faithfulness_prompt | llm | StrOutputParser())
     faith_result = chain.invoke({
         "user_input": user_input,
-        "retrieved_contexts": retrieved_contexts,
-        "response": response
+        "response": response,
+        "retrieved_contexts": retrieved_contexts
     })
     return {
         "Faithfulness": faith_result
@@ -559,9 +567,4 @@ processed_test = preprocess_dataset(test_df)
 print(f"🔄 Processing {len(processed_test)} rows across {len(MODELS)} models...")
 evaluate_dataset(processed_test)
 
-# Verify output files for at least 1 model
-found_files = [f for f in os.listdir() if f.startswith("evalresult_")]
-print("\n✅ Verification results:")
-print(f"Generated files: {len(found_files)}/{len(MODELS)} expected")
-print("Sample files created:", *found_files[:2], sep="\n- ")
 
