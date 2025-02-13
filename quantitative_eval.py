@@ -114,6 +114,7 @@ for csv_file in csv_files:
             model=model_name,
             temperature=0,
             format="json",
+            num_ctx= 10000,
             system= "You are a helpful assistant that follows directions acording to the provided schema. Your response must be a valid JSON object with no additional commentary or text. Do not output any explanation or extra text; only output a valid JSON."
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
@@ -123,7 +124,7 @@ for csv_file in csv_files:
             llm=llm,
             embeddings=ollama_emb,
             metrics=metrics,
-            run_config=RunConfig(max_retries=5,timeout=360)
+            run_config=RunConfig(max_retries=5,timeout=600)
             )
 
         # Save the result if everything parsed correctly
