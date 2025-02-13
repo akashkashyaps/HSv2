@@ -73,7 +73,7 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         ]
     )
     
-    evaluation_dataset = EvaluationDataset.from_list(processed_df.to_dict(orient='records'))
+    evaluation_dataset = EvaluationDataset.from_pandas(processed_df)
     return evaluation_dataset
 
 from ragas import EvaluationDataset
