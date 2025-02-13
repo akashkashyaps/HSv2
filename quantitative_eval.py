@@ -113,7 +113,8 @@ for csv_file in csv_files:
         llm = ChatOllama(
             model=model_name,
             temperature=0,
-            format="json"
+            format="json",
+            system= "You are a helpful assistant that follows directions acording to the provided schema. Your response must be a valid JSON object with no additional commentary or text. Do not output any explanation or extra text; only output a valid JSON."
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
