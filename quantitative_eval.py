@@ -17,6 +17,7 @@ from ragas import EvaluationDataset
 import nest_asyncio
 import pandas as pd
 import ast
+import re
 
 # Apply nest_asyncio for async support
 nest_asyncio.apply()
@@ -36,34 +37,24 @@ csv_files = [
 ]
 
 # Preprocess the dataset to match RAGAS expected format
-def clean_context_text(text: str) -> list:
+def extract_page_contents(text: str) -> list:
     """
-    Splits 'text' by newlines, strips whitespace,
-    and filters out empty lines — one simple approach to chunking.
+    Extracts the content of each page from a string containing one or more 
+    Document(...) objects. This function looks for the pattern:
+      page_content="...text..."
+    and returns a list where each element is the text for one page.
     """
-    lines = text.split('\n')
-    lines = [line.strip() for line in lines if line.strip()]
-    return lines
-
-def safe_literal_eval(x):
-    """Try to safely evaluate x as a Python literal, and if it fails, return x."""
-    if isinstance(x, str):
-        # Optionally check that the string looks like a list
-        if x.startswith('[') and x.endswith(']'):
-            try:
-                return ast.literal_eval(x)
-            except Exception as e:
-                print(f"Warning: failed to literal_eval {x}: {e}")
-                return x
-        else:
-            # If the string doesn't look like a list, return it as is.
-            return x
-    return x
+    # This pattern captures everything between page_content=" and the next "
+    pattern = r'page_content="(.*?)"'
+    matches = re.findall(pattern, text, flags=re.DOTALL)
+    # Return each captured page content as a single, stripped string
+    return [match.strip() for match in matches if match.strip()]
 
 def preprocess_dataset(df: pd.DataFrame):
     """
-    Prepares dataset for evaluation by renaming columns and
-    simplifying 'retrieved_contexts' into lists of strings.
+    Prepares dataset for evaluation by renaming columns and extracting
+    the page_content from the retrieved contexts into a list of strings,
+    where each element corresponds to one page's content.
     """
     processed_df = df.rename(columns={
         "Question": "user_input",
@@ -72,21 +63,13 @@ def preprocess_dataset(df: pd.DataFrame):
         "Ground_Truth": "reference"
     })
     
-    # Safely convert string representations of lists to actual lists.
-    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(safe_literal_eval)
-    
-    # Optionally split each doc in the retrieved_contexts into smaller pieces (list of lines)
+    # For each row in 'retrieved_contexts', if it is a string, extract the page contents.
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda doc_list: [clean_context_text(doc) for doc in doc_list]
-        if isinstance(doc_list, list) else doc_list
+        lambda x: extract_page_contents(x) if isinstance(x, str) else x
     )
     
-    # Flatten each row so we end up with a single list of lines.
-    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda doc_list: [line for sublist in doc_list for line in sublist]
-        if isinstance(doc_list, list) else doc_list
-    )
-    
+    # Each row now has retrieved_contexts as a list of strings,
+    # where the first element is the first page context, the second is the second, etc.
     evaluation_dataset = EvaluationDataset.from_pandas(processed_df)
     return evaluation_dataset
 
