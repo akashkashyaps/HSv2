@@ -31,8 +31,20 @@ CSV_FILES = [
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
+def clean_context_text(text: str) -> list:
+    """
+    Splits 'text' by newlines, strips whitespace,
+    and filters out empty lines — one simple approach to chunking.
+    """
+    lines = text.split('\n')
+    lines = [line.strip() for line in lines if line.strip()]
+    return lines
+
 def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
-    """Prepare dataset for evaluation"""
+    """
+    Prepares dataset for evaluation by renaming columns and
+    simplifying 'retrieved_contexts' into lists of strings.
+    """
     processed_df = df.rename(columns={
         "Question": "user_input",
         "Context": "retrieved_contexts",
@@ -40,10 +52,22 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "Ground_Truth": "reference"
     })
     
-    # Convert string representation of list to actual list
+    # Convert string representation of list ("[Doc1, Doc2]") to an actual Python list
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
         lambda x: ast.literal_eval(x) if isinstance(x, str) else x
     )
+    
+    # Optionally split each doc in the retrieved_contexts
+    # so we have smaller pieces of text (list of lines).
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
+        lambda doc_list: [clean_context_text(doc) for doc in doc_list]
+    )
+    
+    # Flatten each row so we end up with a single list of lines
+    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
+        lambda doc_list: [line for sublist in doc_list for line in sublist]
+    )
+    
     return processed_df
 
 
@@ -365,160 +389,179 @@ Using the provided inputs:
 - STRICTLY output only the value. NO additional information or formatting is required. You are FORBIDDEN from explaining your value.
 """
 )
-import re
+def replace_double_braces(template_str: str) -> str:
+    """(Optional) Replace double braces to avoid format-string issues."""
+    return template_str.replace('{{', '{').replace('}}', '}')
 
-def replace_double_braces(text):
-    text = re.sub(r'\{\{', '(', text)  # Replace '{{' with '('
-    text = re.sub(r'\}\}', ')', text)  # Replace '}}' with ')'
-    return text
+noise_sensitivity_prompt = PromptTemplate(
+    input_variables=["user_input", "reference", "response", "retrieved_contexts"],
+    template=replace_double_braces(noise_sensitivity_template)
+)
 
-response_relevancy_template = replace_double_braces(response_relevancy_template)
-faithfulness_template = replace_double_braces(faithfulness_template)
-noise_sensitivity_template = replace_double_braces(noise_sensitivity_template)
-context_entities_recall_template = replace_double_braces(context_entities_recall_template)
-context_recall_template = replace_double_braces(context_recall_template)
-context_precision_template = replace_double_braces(context_precision_template)
-class MetricEvaluator:
-    def __init__(self):
-        self.metrics = self.initialize_metrics()
-        self.output_parser = StrOutputParser()
-        
-    def initialize_metrics(self):
-        """Define all evaluation metrics as separate chains"""
-        return {
-            'noise_sensitivity': PromptTemplate(
-                input_variables=[{"user_input"}, {"reference"}, {"response"}, {"retrieved_contexts"}],
-                template=replace_double_braces(noise_sensitivity_template)
-            ),
-            'faithfulness': PromptTemplate(
-                input_variables=["user_input", "response", "retrieved_contexts"],
-                template=replace_double_braces(faithfulness_template)
-            ),
-            'response_relevancy': PromptTemplate(
-                input_variables=["user_input", "response"],
-                template=replace_double_braces(response_relevancy_template)
-            ),
-            'context_entities_recall': PromptTemplate(
-                input_variables=["reference", "retrieved_contexts"],
-                template=replace_double_braces(context_entities_recall_template)
-            ),
-            'context_recall': PromptTemplate(
-                input_variables=["user_input", "reference", "retrieved_contexts"],
-                template=replace_double_braces(context_recall_template)
-            ),
-            'context_precision': PromptTemplate(
-                input_variables=["user_input", "reference", "retrieved_contexts"],
-                template=replace_double_braces(context_precision_template)
-            )
-        }
-    
-    def create_chains(self, model_name):
-        """Create evaluation chains for all metrics using specified model"""
-        llm = ChatOllama(model=model_name, temperature=0)
-        return {
-            "context_precision_chain" : self.metrics['context_precision'] | llm | self.output_parser,
-            "context_recall_chain" : self.metrics['context_recall'] | llm | self.output_parser,
-            "context_entities_recall_chain" : self.metrics['context_entities_recall'] | llm | self.output_parser,
-            "noise_sensitivity_chain" : self.metrics['noise_sensitivity'] | llm | self.output_parser,
-            "response_relevancy_chain" : self.metrics['response_relevancy'] | llm | self.output_parser,
-            "faithfulness_chain" : self.metrics['faithfulness'] | llm | self.output_parser
-        }
-    
-    def preprocess_data(self, df):
-        """Prepare dataset format"""
-        df = df.rename(columns={
-            "Question": "user_input",
-            "Context": "retrieved_contexts",
-            "Answer": "response",
-            "Ground_Truth": "reference"
-        })
-        df['retrieved_contexts'] = df['retrieved_contexts'].apply(
-            lambda x: ast.literal_eval(x) if isinstance(x, str) else x
-        )
-        return df
-    
-    def evaluate_row(self, row, chains):
-        """Evaluate a single row with all metrics"""
-        results = {}
-        contexts = "\n".join([f"- {ctx}" for ctx in row['retrieved_contexts']])
-        
-        for metric_name, chain in chains.items():
-            try:
-                result = chain.invoke({
-                    "user_input": row['user_input'],
-                    "reference": row['reference'],
-                    "response": row['response'],
-                    "retrieved_contexts": contexts
-                })
-                results[metric_name] = float(result.strip())
-            except Exception as e:
-                print(f"Error in {metric_name}: {str(e)}")
-                results[metric_name] = None
-            time.sleep(1)  # Rate limiting
-            
-        return results
-    
-    def process_file(self, csv_path):
-        """Process a CSV file with all models and metrics"""
-        df = self.preprocess_data(pd.read_csv(csv_path))
-        
-        for model in MODELS:
-            model_safe = model.replace('/', '_').replace(':', '_')
-            print(f"\nEvaluating with {model}...")
-            
-            # Initialize chains for current model
-            chains = self.create_chains(model)
-            
-            # Add columns if missing
-            for metric in self.metrics:
-                col_name = f"{metric}_{model_safe}"
-                if col_name not in df.columns:
-                    df[col_name] = None
-                    
-            # Process rows
-            for idx, row in tqdm(df.iterrows(), total=len(df)):
-                if any(pd.isnull(row[f"{metric}_{model_safe}"]) for metric in self.metrics):
-                    results = self.evaluate_row(row, chains)
-                    for metric, value in results.items():
-                        df.at[idx, f"{metric}_{model_safe}"] = value
-                        
-            # Save incremental progress
-            df.to_csv(csv_path.replace('.csv', '_partial.csv'), index=False)
-            
-        # Final save
-        df.to_csv(csv_path.replace('.csv', '_evaluated.csv'), index=False)
-        return df
+faithfulness_prompt = PromptTemplate(
+    input_variables=["user_input", "response", "retrieved_contexts"],
+    template=replace_double_braces(faithfulness_template)
+)
 
-    def test_system(self):
-        """Test the evaluation system with sample data"""
-        sample_row = {
-            "user_input": "What is photosynthesis?",
-            "reference": "Photosynthesis is the process plants use to convert sunlight into energy.",
-            "response": "Plants create energy through photosynthesis using sunlight.",
-            "retrieved_contexts": [
-                "Photosynthesis converts light energy to chemical energy",
-                "Occurs in chloroplasts of plant cells"
-            ]
-        }
-        
-        print("Running system test...")
-        for model in MODELS:
-            print(f"\nTesting {model}:")
-            chains = self.create_chains(model)
-            results = self.evaluate_row(sample_row, chains)
-            for metric, value in results.items():
-                print(f"{metric}: {value}")
-            print("-------------------")
+response_relevancy_prompt = PromptTemplate(
+    input_variables=["user_input", "response"],
+    template=replace_double_braces(response_relevancy_template)
+)
 
-if __name__ == "__main__":
-    evaluator = MetricEvaluator()
+context_entities_recall_prompt = PromptTemplate(
+      input_variables=["reference", "retrieved_contexts"],
+      template=replace_double_braces(context_entities_recall_template)
+   )
+
+context_recall_prompt = PromptTemplate(
+      input_variables=["user_input", "reference", "retrieved_contexts"],
+      template=replace_double_braces(context_recall_template)
+   )
+
+context_precision_prompt = PromptTemplate(
+      input_variables=["user_input", "reference", "retrieved_contexts"],
+      template=replace_double_braces(context_precision_template)
+   )
+
+def get_noise_sensitivity(
+    llm,
+    user_input: str,
+    response: str,
+    reference: str,
+    retrieved_contexts: list
+) -> Dict[str, Any]:
+    """
+    Runs user input + context + reference + response through noise_sensitivity prompt.
+    """
+    # Build the pipeline
+    chain = (noise_sensitivity_prompt | llm | StrOutputParser())
     
-    # 1. Run system test
-    evaluator.test_system()
+    noise_result = chain.invoke({
+        "user_input": user_input,
+        "reference": reference,
+        "response": response,
+        "retrieved_contexts": retrieved_contexts
+    })
     
-    # 2. Process files after confirmation
-    proceed = input("\nProceed with full evaluation? (y/n): ")
-    if proceed.lower() == 'y':
-        for csv_file in CSV_FILES:
-            print(f"\n{'='*50}\nProcessing {csv_file}")
-            evaluator.process_file(csv_file)
+    # Return in a consistent dictionary format
+    return {
+        "Noise Sensitivity": noise_result
+    }
+
+def get_faithfulness(llm, user_input: str, response: str, retrieved_contexts: list) -> Dict[str, Any]:
+    chain = (faithfulness_prompt | llm | StrOutputParser())
+    faith_result = chain.invoke({
+        "user_input": user_input,
+        "response": response,
+        "retrieved_contexts": retrieved_contexts
+    })
+    return {
+        "Faithfulness": faith_result
+    }
+
+def get_response_relevancy(llm, user_input: str, response: str) -> Dict[str, Any]:
+    chain = (response_relevancy_prompt | llm | StrOutputParser())
+    relevancy_result = chain.invoke({
+        "user_input": user_input,
+        "response": response
+    })
+    return {
+        "Response Relevancy": relevancy_result
+    }
+
+def get_context_entities_recall(llm, reference: str, retrieved_contexts: list) -> Dict[str, Any]:  
+      chain = (context_entities_recall_prompt | llm | StrOutputParser())
+      entities_recall_result = chain.invoke({
+         "reference": reference,
+         "retrieved_contexts": retrieved_contexts
+      })
+      return {
+         "Context Entities Recall": entities_recall_result
+      }
+
+def get_context_recall(llm, user_input: str, reference: str, retrieved_contexts: list) -> Dict[str, Any]:  
+      chain = (context_recall_prompt | llm | StrOutputParser())
+      context_recall_result = chain.invoke({
+         "user_input": user_input,
+         "reference": reference,
+         "retrieved_contexts": retrieved_contexts
+      })
+      return {
+         "Context Recall": context_recall_result
+      }
+
+def get_context_precision(llm, user_input: str, reference: str, retrieved_contexts: list) -> Dict[str, Any]:
+      chain = (context_precision_prompt | llm | StrOutputParser())
+      context_precision_result = chain.invoke({
+         "user_input": user_input,
+         "reference": reference,
+         "retrieved_contexts": retrieved_contexts
+      })
+      return {
+         "Context Precision": context_precision_result
+      }
+
+
+def evaluate_metrics_for_row(row: pd.Series, llm) -> Dict[str, Any]:
+    """
+    For a single row, gather user_input / response / reference / retrieved_contexts
+    and invoke each metric function, returning a combined dictionary.
+    """
+    user_input = row.get("user_input", "")
+    response = row.get("response", "")
+    reference = row.get("reference", "")
+    retrieved_contexts = row.get("retrieved_contexts", [])
+
+    # Call each metric function
+    noise = get_noise_sensitivity(llm, user_input, response, reference, retrieved_contexts)
+    faith = get_faithfulness(llm, user_input, response, retrieved_contexts)
+    relevancy = get_response_relevancy(llm, user_input, response)
+    entities_recall = get_context_entities_recall(llm, reference, retrieved_contexts)
+    context_recall = get_context_recall(llm, user_input, reference, retrieved_contexts)
+    context_precision = get_context_precision(llm, user_input, reference, retrieved_contexts)
+    
+    # Combine everything
+    results = {}
+    results.update(noise)
+    results.update(faith)
+    results.update(relevancy)
+    results.update(entities_recall)
+    results.update(context_recall)
+    results.update(context_precision)
+    
+    return results
+
+def evaluate_dataset(df: pd.DataFrame) -> None:
+    """Evaluate and save separate CSV for each model"""
+    test_df = df.head(2)  # Test with first 2 rows
+    
+    for model_name in MODELS:
+        llm = ChatOllama(model=model_name, temperature=0.1)
+        model_evals = []
+        
+        for idx, row in test_df.iterrows():
+            row_results = evaluate_metrics_for_row(row, llm)
+            row_results["row_index"] = idx
+            model_evals.append(row_results)
+        
+        # Create sanitized filename
+        safe_model_name = model_name.replace(":", "_").replace("/", "_")
+        pd.DataFrame(model_evals).to_csv(f"evalresult_{safe_model_name}.csv", index=False)
+
+
+# Test the first 2 rows pipeline
+test_df = pd.read_csv("Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv").head(2)  # Replace with your actual file
+
+# Preprocess the test data
+processed_test = preprocess_dataset(test_df)
+
+# Run evaluation on first 2 rows for all models
+print(f"🔄 Processing {len(processed_test)} rows across {len(MODELS)} models...")
+evaluate_dataset(processed_test)
+
+# Verify output files for at least 1 model
+found_files = [f for f in os.listdir() if f.startswith("evalresult_")]
+print("\n✅ Verification results:")
+print(f"Generated files: {len(found_files)}/{len(MODELS)} expected")
+print("Sample files created:", *found_files[:2], sep="\n- ")
+
