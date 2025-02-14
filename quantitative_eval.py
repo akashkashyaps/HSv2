@@ -114,8 +114,8 @@ for csv_file in csv_files:
             model=model_name,
             temperature=0,
             format="json",
-            num_ctx= 10000,
-            system= "You are a helpful assistant that follows directions acording to the provided schema. Your response must be a valid JSON object with no additional commentary or text. Do not output any explanation or extra text; only output a valid JSON."
+            num_ctx=20000,
+            system="You are a helpful assistant that follows directions according to the provided schema. Your response must be a valid JSON object with no additional commentary or text. Do not output any explanation or extra text; only output a valid JSON."
         )
         ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
@@ -124,14 +124,19 @@ for csv_file in csv_files:
             llm=llm,
             embeddings=ollama_emb,
             metrics=metrics,
-            run_config=RunConfig(max_retries=5,timeout=600)
-            )
+            run_config=RunConfig(max_retries=5, timeout=600)
+        )
 
-        # Save the result if everything parsed correctly
-        output_file = f"{csv_file.replace('.csv', '')}_Evaluator_{model_name}_quantitative.csv"
+        # Replace invalid filename characters
+        safe_model_name = model_name.replace(":", "_")
+        safe_csv_file = csv_file.replace(":", "_").replace(".csv", "")
+
+        # Save the result
+        output_file = f"{safe_csv_file}_Evaluator_{safe_model_name}_quantitative.csv"
         result.to_pandas().to_csv(output_file, index=False)
 
         print(f"Completed evaluation for model: {model_name}")
         print(f"Results saved to: {output_file}")
 
     print(f"Finished processing dataset: {csv_file}")
+
