@@ -8,6 +8,7 @@ from tqdm import tqdm
 import pandas as pd
 import ast
 from langchain_core.output_parsers import StrOutputParser
+import re
 
 
 # Configuration
@@ -31,19 +32,24 @@ CSV_FILES = [
     "Results_llama3.1:8b-instruct-q4_0.csv"
 ]
 
-def clean_context_text(text: str) -> list:
+def extract_page_contents(text: str) -> list:
     """
-    Splits 'text' by newlines, strips whitespace,
-    and filters out empty lines — one simple approach to chunking.
+    Extracts the content of each page from a string containing one or more 
+    Document(...) objects. This function looks for the pattern:
+      page_content="...text..."
+    and returns a list where each element is the text for one page.
     """
-    lines = text.split('\n')
-    lines = [line.strip() for line in lines if line.strip()]
-    return lines
+    # This pattern captures everything between page_content=" and the next "
+    pattern = r'page_content="(.*?)"'
+    matches = re.findall(pattern, text, flags=re.DOTALL)
+    # Return each captured page content as a single, stripped string
+    return [match.strip() for match in matches if match.strip()]
 
-def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess_dataset(df: pd.DataFrame):
     """
-    Prepares dataset for evaluation by renaming columns and
-    simplifying 'retrieved_contexts' into lists of strings.
+    Prepares dataset for evaluation by renaming columns and extracting
+    the page_content from the retrieved contexts into a list of strings,
+    where each element corresponds to one page's content.
     """
     processed_df = df.rename(columns={
         "Question": "user_input",
@@ -52,22 +58,13 @@ def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
         "Ground_Truth": "reference"
     })
     
-    # Convert string representation of list ("[Doc1, Doc2]") to an actual Python list
+    # For each row in 'retrieved_contexts', if it is a string, extract the page contents.
     processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda x: ast.literal_eval(x) if isinstance(x, str) else x
+        lambda x: extract_page_contents(x) if isinstance(x, str) else x
     )
     
-    # Optionally split each doc in the retrieved_contexts
-    # so we have smaller pieces of text (list of lines).
-    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda doc_list: [clean_context_text(doc) for doc in doc_list]
-    )
-    
-    # Flatten each row so we end up with a single list of lines
-    processed_df['retrieved_contexts'] = processed_df['retrieved_contexts'].apply(
-        lambda doc_list: [line for sublist in doc_list for line in sublist]
-    )
-    
+    # Each row now has retrieved_contexts as a list of strings,
+    # where the first element is the first page context, the second is the second, etc.
     return processed_df
 
 
@@ -442,7 +439,7 @@ def get_noise_sensitivity(
     Runs user input + context + reference + response through noise_sensitivity prompt.
     """
     # Build the pipeline
-    chain = (noise_sensitivity_prompt | llm | StrOutputParser())
+    chain = noise_sensitivity_prompt | llm | StrOutputParser()
     
     noise_result = chain.invoke({
         "user_input": user_input,
@@ -457,7 +454,7 @@ def get_noise_sensitivity(
     }
 
 def get_faithfulness(llm, user_input: str, response: str, retrieved_contexts: list) -> Dict[str, Any]:
-    chain = (faithfulness_prompt | llm | StrOutputParser())
+    chain = faithfulness_prompt | llm | StrOutputParser()
     faith_result = chain.invoke({
         "user_input": user_input,
         "response": response,
@@ -468,7 +465,7 @@ def get_faithfulness(llm, user_input: str, response: str, retrieved_contexts: li
     }
 
 def get_response_relevancy(llm, user_input: str, response: str) -> Dict[str, Any]:
-    chain = (response_relevancy_prompt | llm | StrOutputParser())
+    chain = response_relevancy_prompt | llm | StrOutputParser()
     relevancy_result = chain.invoke({
         "user_input": user_input,
         "response": response
@@ -478,7 +475,7 @@ def get_response_relevancy(llm, user_input: str, response: str) -> Dict[str, Any
     }
 
 def get_context_entities_recall(llm, reference: str, retrieved_contexts: list) -> Dict[str, Any]:  
-      chain = (context_entities_recall_prompt | llm | StrOutputParser())
+      chain = context_entities_recall_prompt | llm | StrOutputParser()
       entities_recall_result = chain.invoke({
          "reference": reference,
          "retrieved_contexts": retrieved_contexts
@@ -488,7 +485,7 @@ def get_context_entities_recall(llm, reference: str, retrieved_contexts: list) -
       }
 
 def get_context_recall(llm, user_input: str, reference: str, retrieved_contexts: list) -> Dict[str, Any]:  
-      chain = (context_recall_prompt | llm | StrOutputParser())
+      chain = context_recall_prompt | llm | StrOutputParser()
       context_recall_result = chain.invoke({
          "user_input": user_input,
          "reference": reference,
@@ -499,7 +496,7 @@ def get_context_recall(llm, user_input: str, reference: str, retrieved_contexts:
       }
 
 def get_context_precision(llm, user_input: str, reference: str, retrieved_contexts: list) -> Dict[str, Any]:
-      chain = (context_precision_prompt | llm | StrOutputParser())
+      chain = context_precision_prompt | llm | StrOutputParser()
       context_precision_result = chain.invoke({
          "user_input": user_input,
          "reference": reference,
