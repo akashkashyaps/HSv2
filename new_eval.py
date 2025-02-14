@@ -479,7 +479,7 @@ def evaluate_metrics_for_row(row: pd.Series, llm) -> Dict[str, Any]:
 def evaluate_dataset(df: pd.DataFrame) -> None:
     """Evaluate and save separate CSV for each model"""
     for model_name in MODELS:
-        llm = ChatOllama(model=model_name, temperature=0.1)
+        llm = ChatOllama(model=model_name, temperature=0, num_ctx=20000)
         model_evals = []
         
         for idx, row in df.iterrows():  # Evaluate all rows, not just head(2)
