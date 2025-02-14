@@ -27,13 +27,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
 # List of CSV files to process
-csv_files = [
-    "Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv",
-    "Results_mistral:7b-instruct-q4_0.csv",
-    "Results_phi3.5:3.8b-mini-instruct-q4_0.csv",
-    "Results_gemma2:9b-instruct-q4_0.csv",
-    "Results_qwen2.5:7b-instruct-q4_0.csv", 
-    "Results_llama3.1:8b-instruct-q4_0.csv"
+CSV_FILES = [
+    "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
+    "Results_mistral_7b-instruct-q4_0.csv",
+    "Results_phi3.5_3.8b-mini-instruct-q4_0.csv",
+    "Results_gemma2_9b-instruct-q4_0.csv",
+    "Results_qwen2.5_7b-instruct-q4_0.csv",
+    "Results_llama3.1_8b-instruct-q4_0.csv"
 ]
 
 # Preprocess the dataset to match RAGAS expected format
@@ -100,7 +100,7 @@ metrics = [
 ]
 from ragas.run_config import RunConfig
 # Loop through each CSV file
-for csv_file in csv_files:
+for csv_file in CSV_FILES:
     print(f"\nProcessing dataset: {csv_file}")
     evaluation_set = pd.read_csv(csv_file)
     dataset = preprocess_dataset(evaluation_set)
