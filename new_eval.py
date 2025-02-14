@@ -478,30 +478,16 @@ def evaluate_metrics_for_row(row: pd.Series, llm) -> Dict[str, Any]:
 
 def evaluate_dataset(df: pd.DataFrame) -> None:
     """Evaluate and save separate CSV for each model"""
-    test_df = df.head(2)  # Test with first 2 rows
-    
     for model_name in MODELS:
         llm = ChatOllama(model=model_name, temperature=0.1)
         model_evals = []
         
-        for idx, row in test_df.iterrows():
+        for idx, row in df.iterrows():  # Evaluate all rows, not just head(2)
             row_results = evaluate_metrics_for_row(row, llm)
             row_results["row_index"] = idx
             model_evals.append(row_results)
         
         # Create sanitized filename
         safe_model_name = model_name.replace(":", "_").replace("/", "_")
-        pd.DataFrame(model_evals).to_csv(f"evalresult_{safe_model_name}.csv", index=False)
-
-
-# Test the first 2 rows pipeline
-test_df = pd.read_csv("Results_lly_InternLM3-8B-Instruct:8b-instruct-q4_0.csv").head(2)  # Replace with your actual file
-
-# Preprocess the test data
-processed_test = preprocess_dataset(test_df)
-
-# Run evaluation on first 2 rows for all models
-print(f"🔄 Processing {len(processed_test)} rows across {len(MODELS)} models...")
-evaluate_dataset(processed_test)
-
+        pd.DataFrame(model_evals).to_csv(f"myeval_{safe_model_name}.csv", index=False)
 
