@@ -9,6 +9,7 @@ import pandas as pd
 import ast
 from langchain_core.output_parsers import StrOutputParser
 import re
+from pathlib import Path 
 
 
 context_precision_template = ("""
@@ -476,18 +477,33 @@ def evaluate_metrics_for_row(row: pd.Series, llm) -> Dict[str, Any]:
     
     return results
 
-def evaluate_dataset(df: pd.DataFrame) -> None:
-    """Evaluate and save separate CSV for each model"""
-    for model_name in MODELS:
-        llm = ChatOllama(model=model_name, temperature=0, num_ctx=20000)
-        model_evals = []
+def evaluate_dataset():
+    """Process each CSV file, then evaluate all models for that CSV."""
+    for csv_file in CSV_FILES:  # Iterate over CSV paths
+        print(f"\nProcessing CSV: {csv_file}")
+        # Read and preprocess this CSV
+        df = pd.read_csv(csv_file)  # Load current CSV [[8]]
+        processed_df = preprocess_dataset(df)  # [[2]]
         
-        for idx, row in df.iterrows():  # Evaluate all rows, not just head(2)
-            row_results = evaluate_metrics_for_row(row, llm)
-            row_results["row_index"] = idx
-            model_evals.append(row_results)
-        
-        # Create sanitized filename
-        safe_model_name = model_name.replace(":", "_").replace("/", "_")
-        pd.DataFrame(model_evals).to_csv(f"myeval_{safe_model_name}.csv", index=False)
+        # Evaluate against all models for this CSV
+        for model_name in MODELS:  # Iterate over all 8 models
+            print(f"Evaluating {model_name} on {csv_file}")
+            llm = ChatOllama(model=model_name, temperature=0, num_ctx=20000)
+            model_evals = []  # Store results for this model+CSV
+            
+            for idx, row in processed_df.iterrows():  # Process each row [[7]]
+                row_results = evaluate_metrics_for_row(row, llm)
+                row_results["row_index"] = idx
+                model_evals.append(row_results)
+            
+            # Generate unique CSV for this combination (e.g., "Results_mistral.csv" → "Results_mistral_ModelA.csv")
+            csv_base = Path(csv_file).stem  # e.g., "Results_mistral_7b..." → "Results_mistral_7b..."
+            safe_model_name = model_name.replace(":", "_").replace("/", "_")
+            output_filename = f"{csv_base}_EvaluatedBy_{safe_model_name}.csv"  # [[3]]
+            pd.DataFrame(model_evals).to_csv(output_filename, index=False)
+            print(f"Saved: {output_filename}")
+
+if __name__ == "__main__":
+    evaluate_dataset()  # Start the evaluation pipeline
+
 
