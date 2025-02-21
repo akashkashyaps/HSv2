@@ -5,6 +5,8 @@ import time
 from typing import List, Dict, Any
 from datasets import Dataset
 from tqdm import tqdm
+import logging
+import sys
 import pandas as pd
 import ast
 from langchain_core.output_parsers import StrOutputParser
@@ -448,62 +450,112 @@ def get_context_precision(llm, user_input: str, reference: str, retrieved_contex
       }
 
 
+# Configure logging
+logging.basicConfig(
+    filename='evaluation_errors.log',
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# Add timeout to Ollama client initialization
+def create_llm(model_name: str):
+    return ChatOllama(
+        model=model_name,
+        temperature=0,
+        num_ctx=20000,
+        timeout=300  # 5-minute timeout for API calls
+    )
+
 def evaluate_metrics_for_row(row: pd.Series, llm) -> Dict[str, Any]:
     """
-    For a single row, gather user_input / response / reference / retrieved_contexts
-    and invoke each metric function, returning a combined dictionary.
+    Enhanced with error handling and a progress bar over metrics.
     """
-    user_input = row.get("user_input", "")
-    response = row.get("response", "")
-    reference = row.get("reference", "")
-    retrieved_contexts = row.get("retrieved_contexts", [])
-
-    # Call each metric function
-    noise = get_noise_sensitivity(llm, user_input, response, reference, retrieved_contexts)
-    faith = get_faithfulness(llm, user_input, response, retrieved_contexts)
-    relevancy = get_response_relevancy(llm, user_input, response)
-    entities_recall = get_context_entities_recall(llm, reference, retrieved_contexts)
-    context_recall = get_context_recall(llm, user_input, reference, retrieved_contexts)
-    context_precision = get_context_precision(llm, user_input, reference, retrieved_contexts)
-    
-    # Combine everything
     results = {}
-    results.update(noise)
-    results.update(faith)
-    results.update(relevancy)
-    results.update(entities_recall)
-    results.update(context_recall)
-    results.update(context_precision)
-    
+    metrics = [
+        ("Noise Sensitivity", get_noise_sensitivity),
+        ("Faithfulness", get_faithfulness),
+        ("Response Relevancy", get_response_relevancy),
+        ("Context Entities Recall", get_context_entities_recall),
+        ("Context Recall", get_context_recall),
+        ("Context Precision", get_context_precision)
+    ]
+
+    # Add a tqdm progress bar for metric evaluation
+    metric_progress = tqdm(metrics, desc="Evaluating metrics", leave=False)
+    for metric_name, metric_func in metric_progress:
+        try:
+            metric_progress.set_postfix_str(metric_name)
+            result = metric_func(llm, **{
+                "user_input": row.get("user_input", ""),
+                "response": row.get("response", ""),
+                "reference": row.get("reference", ""),
+                "retrieved_contexts": row.get("retrieved_contexts", [])
+            })
+            results.update(result)
+        except Exception as e:
+            logging.error(f"Error in {metric_name} for row {row.name}: {str(e)}")
+            results[metric_name] = "ERROR"
+
     return results
 
+def preprocess_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Placeholder function for dataset preprocessing.
+    Adjust according to your specific needs.
+    """
+    # Example: fill all NaNs with empty strings
+    return df.fillna("")
+
+# Enhanced evaluation pipeline with progress tracking
 def evaluate_dataset():
-    """Process each CSV file, then evaluate all models for that CSV."""
-    for csv_file in CSV_FILES:  # Iterate over CSV paths
-        print(f"\nProcessing CSV: {csv_file}")
-        # Read and preprocess this CSV
-        df = pd.read_csv(csv_file)  # Load current CSV [[8]]
-        processed_df = preprocess_dataset(df)  # [[2]]
-        
-        # Evaluate against all models for this CSV
-        for model_name in MODELS:  # Iterate over all 8 models
-            print(f"Evaluating {model_name} on {csv_file}")
-            llm = ChatOllama(model=model_name, temperature=0, num_ctx=20000)
-            model_evals = []  # Store results for this model+CSV
+    """Process each CSV file with progress tracking and error handling"""
+    csv_progress = tqdm(CSV_FILES, desc="Processing CSVs", file=sys.stdout)
+    
+    for csv_file in csv_progress:
+        csv_progress.set_postfix_str(f"Current: {Path(csv_file).stem}")
+        try:
+            df = pd.read_csv(csv_file)
+            processed_df = preprocess_dataset(df)
             
-            for idx, row in processed_df.iterrows():  # Process each row [[7]]
-                row_results = evaluate_metrics_for_row(row, llm)
-                row_results["row_index"] = idx
-                model_evals.append(row_results)
-            
-            # Generate unique CSV for this combination (e.g., "Results_mistral.csv" → "Results_mistral_ModelA.csv")
-            csv_base = Path(csv_file).stem  # e.g., "Results_mistral_7b..." → "Results_mistral_7b..."
-            safe_model_name = model_name.replace(":", "_").replace("/", "_")
-            output_filename = f"{csv_base}_EvaluatedBy_{safe_model_name}.csv"  # [[3]]
-            pd.DataFrame(model_evals).to_csv(output_filename, index=False)
-            print(f"Saved: {output_filename}")
+            model_progress = tqdm(MODELS, desc="Models", leave=False)
+            for model_name in model_progress:
+                model_progress.set_postfix_str(model_name)
+                try:
+                    llm = create_llm(model_name)
+                    output_filename = f"{Path(csv_file).stem}_EvaluatedBy_{model_name.replace(':', '_')}.csv"
+                    
+                    # Skip if already processed
+                    if Path(output_filename).exists():
+                        continue
+                        
+                    row_progress = tqdm(
+                        processed_df.iterrows(),
+                        total=len(processed_df),
+                        desc="Rows",
+                        leave=False
+                    )
+                    
+                    results = []
+                    for idx, row in row_progress:
+                        try:
+                            row_results = evaluate_metrics_for_row(row, llm)
+                            row_results["row_index"] = idx
+                            results.append(row_results)
+                        except Exception as e:
+                            logging.error(f"Row {idx} failed: {str(e)}")
+                            continue
+                            
+                    pd.DataFrame(results).to_csv(output_filename, index=False)
+                    
+                except Exception as model_error:
+                    logging.error(f"Model {model_name} failed: {str(model_error)}")
+                    continue
+
+        except Exception as csv_error:
+            logging.error(f"CSV {csv_file} failed: {str(csv_error)}")
+            continue
 
 if __name__ == "__main__":
-    evaluate_dataset()  # Start the evaluation pipeline
+    evaluate_dataset()
 
 
