@@ -290,16 +290,16 @@ MODELS = [
 #"mistral:7b-instruct-q4_0",
 #"deepseek-r1:7b-qwen-distill-q4_K_M",
 #"deepseek-r1:8b-llama-distill-q4_K_M"
-#    "llama3.1:8b-instruct-q4_0"
+#"llama3.1:8b-instruct-q4_0"
 
 CSV_FILES = [
-    "Results_gemma2_9b-instruct-q4_0.csv"
+    "Results_qwen2.5_7b-instruct-q4_0.csv"
 ]
 #       "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
 #       "Results_mistral_7b-instruct-q4_0.csv"
 #       "Results_phi3.5_3.8b-mini-instruct-q4_0.csv",
 #       "Results_gemma2_9b-instruct-q4_0.csv",
-#    "Results_qwen2.5_7b-instruct-q4_0.csv",
+#       "Results_qwen2.5_7b-instruct-q4_0.csv",
 #    "Results_llama3.1_8b-instruct-q4_0.csv"
 
 def extract_page_contents(text: str) -> list:
