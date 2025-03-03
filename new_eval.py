@@ -283,8 +283,9 @@ You are FORBIDDEN from explaining your value.
 
 # Configuration
 MODELS = [
-    "qwen2.5:7b-instruct-q4_0"
+    "gemma2:9b-instruct-q4_0"
 ]
+#   "qwen2.5:7b-instruct-q4_0"
 #"gemma2:9b-instruct-q4_0",
 #"phi3.5:3.8b-mini-instruct-q4_0",
 #"mistral:7b-instruct-q4_0",
@@ -300,7 +301,7 @@ CSV_FILES = [
 #    "Results_phi3.5_3.8b-mini-instruct-q4_0.csv",
 #    "Results_gemma2_9b-instruct-q4_0.csv",
 #    "Results_qwen2.5_7b-instruct-q4_0.csv",
-#    "Results_llama3.1_8b-instruct-q4_0.csv"
+#       "Results_llama3.1_8b-instruct-q4_0.csv"
 
 def extract_page_contents(text: str) -> list:
     """
