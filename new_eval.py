@@ -284,7 +284,9 @@ You are FORBIDDEN from explaining your value.
 # Configuration
 MODELS = [
     "llama3.1:8b-instruct-q4_0",
-    "qwen2.5:7b-instruct-q4_0"
+    "qwen2.5:7b-instruct-q4_0",
+    "deepseek-r1:7b-qwen-distill-q4_K_M",
+    "deepseek-r1:8b-llama-distill-q4_K_M"
 ]
 
 CSV_FILES = [
