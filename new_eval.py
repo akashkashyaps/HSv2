@@ -294,12 +294,12 @@ MODELS = [
 #"llama3.1:8b-instruct-q4_0"
 
 CSV_FILES = [
-    "Results_phi3.5_3.8b-mini-instruct-q4_0.csv"
+    "Results_gemma2_9b-instruct-q4_0.csv"
 ]
 #       "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
 #       "Results_mistral_7b-instruct-q4_0.csv"
 #       "Results_phi3.5_3.8b-mini-instruct-q4_0.csv",
-#    "Results_gemma2_9b-instruct-q4_0.csv",
+#       "Results_gemma2_9b-instruct-q4_0.csv",
 #    "Results_qwen2.5_7b-instruct-q4_0.csv",
 #    "Results_llama3.1_8b-instruct-q4_0.csv"
 
