@@ -294,7 +294,7 @@ MODELS = [
 #"llama3.1:8b-instruct-q4_0"
 
 CSV_FILES = [
-    "Results_mistral_7b-instruct-q4_0.csv"
+    "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv"
 ]
 #    "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
 #       "Results_mistral_7b-instruct-q4_0.csv"
