@@ -283,20 +283,21 @@ You are FORBIDDEN from explaining your value.
 
 # Configuration
 MODELS = [
-    "mistral:7b-instruct-q4_0"
+    "llama3.1:8b-instruct-q4_0"
 ]
 #   "qwen2.5:7b-instruct-q4_0"
 #   "gemma2:9b-instruct-q4_0",
 #   "phi3.5:3.8b-mini-instruct-q4_0",
 #   "mistral:7b-instruct-q4_0",
+#   "llama3.1:8b-instruct-q4_0",
+#"lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
 #"deepseek-r1:7b-qwen-distill-q4_K_M",
 #"deepseek-r1:8b-llama-distill-q4_K_M"
-#"llama3.1:8b-instruct-q4_0"
 
 CSV_FILES = [
     "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv"
 ]
-#       "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
+#     "Results_lly_InternLM3-8B-Instruct_8b-instruct-q4_0.csv",
 #       "Results_mistral_7b-instruct-q4_0.csv"
 #       "Results_phi3.5_3.8b-mini-instruct-q4_0.csv",
 #       "Results_gemma2_9b-instruct-q4_0.csv",
