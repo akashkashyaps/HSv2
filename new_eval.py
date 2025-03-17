@@ -283,7 +283,7 @@ You are FORBIDDEN from explaining your value.
 
 # Configuration
 MODELS = [
-    "Results_qwen2.5_7b-instruct-q4_0.csv"
+    "deepseek-r1:7b-qwen-distill-q4_K_M",
 ]
 #   "qwen2.5:7b-instruct-q4_0"
 #   "gemma2:9b-instruct-q4_0",
@@ -291,7 +291,7 @@ MODELS = [
 #   "mistral:7b-instruct-q4_0",
 #"llama3.1:8b-instruct-q4_0",
 #"lly/InternLM3-8B-Instruct:8b-instruct-q4_0"
-#"deepseek-r1:7b-qwen-distill-q4_K_M",
+#   "deepseek-r1:7b-qwen-distill-q4_K_M",
 #   "deepseek-r1:8b-llama-distill-q4_K_M"
 
 CSV_FILES = [
