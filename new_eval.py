@@ -283,7 +283,7 @@ You are FORBIDDEN from explaining your value.
 
 # Configuration
 MODELS = [
-    "deepseek-r1:8b-llama-distill-q4_K_M"
+    "Results_qwen2.5_7b-instruct-q4_0.csv"
 ]
 #   "qwen2.5:7b-instruct-q4_0"
 #   "gemma2:9b-instruct-q4_0",
